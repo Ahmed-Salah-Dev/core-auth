@@ -11,9 +11,10 @@
     ],
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^12.65"
+        "illuminate/support": "^12.0"
     },
     "require-dev": {
+        "laravel/framework": "^12.0",
         "phpunit/phpunit": "^11.5"
     },
     "autoload": {
