@@ -18,23 +18,17 @@ final class AuthManager implements AuthManagerInterface
     }
 
     /**
-     * Attempt to authenticate a user using their credentials.
+     * Attempt to authenticate a user using the given credentials.
      *
-     * @param string $identifier User email address.
-     * @param string $password User password.
+     * @param array<string, mixed> $credentials
      *
      * @return bool True when authentication succeeds, otherwise false.
      */
-    public function login(
-        string $identifier,
-        string $password
-    ): bool {
+    public function login(array $credentials): bool
+    {
         return $this->auth
             ->guard()
-            ->attempt([
-                'email' => $identifier,
-                'password' => $password,
-            ]);
+            ->attempt($credentials);
     }
 
     /**
