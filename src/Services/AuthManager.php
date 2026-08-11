@@ -9,11 +9,22 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 
 final class AuthManager implements AuthManagerInterface
 {
+    /**
+     * Create a new authentication manager instance.
+     */
     public function __construct(
         private readonly AuthFactory $auth
     ) {
     }
 
+    /**
+     * Attempt to authenticate a user using their credentials.
+     *
+     * @param string $identifier User email address.
+     * @param string $password User password.
+     *
+     * @return bool True when authentication succeeds, otherwise false.
+     */
     public function login(
         string $identifier,
         string $password
@@ -26,6 +37,9 @@ final class AuthManager implements AuthManagerInterface
             ]);
     }
 
+    /**
+     * Log out the currently authenticated user.
+     */
     public function logout(): void
     {
         $this->auth
@@ -33,6 +47,11 @@ final class AuthManager implements AuthManagerInterface
             ->logout();
     }
 
+    /**
+     * Determine whether the current user is authenticated.
+     *
+     * @return bool True when a user is authenticated, otherwise false.
+     */
     public function check(): bool
     {
         return $this->auth
@@ -40,6 +59,11 @@ final class AuthManager implements AuthManagerInterface
             ->check();
     }
 
+    /**
+     * Retrieve the currently authenticated user.
+     *
+     * @return mixed The authenticated user, or null when no user is authenticated.
+     */
     public function user(): mixed
     {
         return $this->auth
