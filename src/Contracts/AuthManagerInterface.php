@@ -6,10 +6,12 @@ namespace AhmedSalahDev\CoreAuth\Contracts;
 
 interface AuthManagerInterface
 {
-    public function login(
-        string $identifier,
-        string $password
-    ): bool;
+    /**
+     * Attempt to authenticate a user using the given credentials.
+     *
+     * @param array<string, mixed> $credentials
+     */
+    public function login(array $credentials): bool;
 
     public function logout(): void;
 

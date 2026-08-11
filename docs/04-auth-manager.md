@@ -25,6 +25,8 @@ Authentication Manager and Service Container Binding
 * إضافة اختبارات Unit وIntegration بسيطة
 * إضافة PHPDoc للدوال الأساسية في `AuthManager`
 * فصل Contract عن Implementation
+* جعل `login()` يقبل credentials عامة بدل فرض استخدام email
+* دعم أي authentication identifier يدعمه Laravel Guard
 
 ---
 
@@ -79,10 +81,7 @@ Laravel Guard
 المسؤوليات الحالية هي:
 
 ```php
-public function login(
-    string $identifier,
-    string $password
-): bool;
+public function login(array $credentials): bool;
 
 public function logout(): void;
 
@@ -91,16 +90,19 @@ public function check(): bool;
 public function user(): mixed;
 ```
 
-### Methods
+---
 
-#### `login()`
+## Methods
 
-مسؤولة عن محاولة تسجيل دخول المستخدم.
+### `login()`
+
+مسؤولة عن محاولة تسجيل دخول المستخدم باستخدام بيانات الاعتماد التي يتم تمريرها إلى Laravel Guard.
 
 تستقبل:
 
-* `identifier`
-* `password`
+```php
+array<string, mixed> $credentials
+```
 
 وتعيد:
 
@@ -109,15 +111,79 @@ true  → authentication succeeded
 false → authentication failed
 ```
 
+لا تفرض الحزمة نوعًا محددًا من الـ identifier.
+
+لذلك يمكن للتطبيق استخدام:
+
+* email
+* username
+* phone
+* employee_id
+* أي credential آخر يدعمه Laravel Guard
+
 ---
 
-#### `logout()`
+### Email Authentication
+
+يمكن استخدام email كـ identifier:
+
+```php
+$authManager->login([
+    'email' => 'user@example.com',
+    'password' => 'correct-password',
+]);
+```
+
+---
+
+### Username Authentication
+
+يمكن استخدام username:
+
+```php
+$authManager->login([
+    'username' => 'ahmed',
+    'password' => 'correct-password',
+]);
+```
+
+---
+
+### Phone Authentication
+
+يمكن استخدام phone إذا كان التطبيق وLaravel Guard يدعمان ذلك:
+
+```php
+$authManager->login([
+    'phone' => '777123456',
+    'password' => 'correct-password',
+]);
+```
+
+---
+
+### Custom Identifier
+
+يمكن أيضًا استخدام أي identifier مخصص:
+
+```php
+$authManager->login([
+    'employee_id' => 'EMP-1001',
+    'password' => 'correct-password',
+]);
+```
+
+مسؤولية `AuthManager` هي تمرير الـ credentials إلى Laravel Guard، وليس تحديد نوع الـ identifier.
+
+---
+
+### `logout()`
 
 مسؤولة عن تسجيل خروج المستخدم الحالي.
 
 ---
 
-#### `check()`
+### `check()`
 
 تتحقق مما إذا كان هناك مستخدم authenticated حاليًا.
 
@@ -130,7 +196,7 @@ false → user is not authenticated
 
 ---
 
-#### `user()`
+### `user()`
 
 ترجع المستخدم authenticated الحالي.
 
@@ -195,21 +261,46 @@ public function __construct(
 التنفيذ الحالي:
 
 ```php
-return $this->auth
-    ->guard()
-    ->attempt([
-        'email' => $identifier,
-        'password' => $password,
-    ]);
+public function login(array $credentials): bool
+{
+    return $this->auth
+        ->guard()
+        ->attempt($credentials);
+}
 ```
 
-في الإصدار الحالي يتم التعامل مع `identifier` على أنه **email**.
+لا يقوم `AuthManager` بتحويل أو تعديل الـ credentials.
+
+بل يمررها كما هي إلى:
+
+```php
+Laravel Guard::attempt()
+```
+
+وهذا يجعل API الخاص بالحزمة عامًا وغير مرتبط بنوع محدد من الـ identifier.
 
 ### Parameters
 
 ```text
-identifier
-password
+credentials
+```
+
+مثال:
+
+```php
+[
+    'email' => 'user@example.com',
+    'password' => 'correct-password',
+]
+```
+
+أو:
+
+```php
+[
+    'username' => 'ahmed',
+    'password' => 'correct-password',
+]
 ```
 
 ### Return
@@ -295,7 +386,13 @@ null
 * نوع القيمة المرجعة
 * السلوك المتوقع
 
-الهدف من ذلك هو جعل الكود أسهل للفهم والصيانة، خصوصًا عند استخدام الحزمة داخل مشاريع Laravel أخرى.
+بالنسبة إلى `login()` يتم توثيق الـ credentials بالشكل:
+
+```php
+@param array<string, mixed> $credentials
+```
+
+وهذا يعكس التصميم العام الجديد للـ API.
 
 ---
 
@@ -360,7 +457,7 @@ AuthManager
 
 ```text
 PHPUnit 11.5.56
-Laravel Testbench 10.11.0
+Laravel Testbench
 PHP 8.2.12
 ```
 
@@ -370,11 +467,11 @@ PHP 8.2.12
 vendor/bin/phpunit
 ```
 
-آخر نتيجة ناجحة:
+آخر نتيجة ناجحة بعد تعميم `login()`:
 
 ```text
-12 tests
-15 assertions
+13 tests
+16 assertions
 OK
 ```
 
@@ -387,11 +484,11 @@ OK
 ### AuthManager
 
 * تطبيق `AuthManagerInterface`
-* نجاح تسجيل الدخول
-* فشل تسجيل الدخول
-* استخدام `identifier` كـ email
+* نجاح تسجيل الدخول باستخدام credentials صحيحة
+* فشل تسجيل الدخول باستخدام credentials غير صحيحة
+* تمرير email credentials إلى Guard
+* قبول credentials لا تستخدم email كـ identifier
 * إرسال بيانات الاعتماد الصحيحة إلى Guard
-* رفض Guard لبيانات الدخول
 * حالة عدم تسجيل الدخول
 * حالة المستخدم authenticated
 * عدم وجود المستخدم
@@ -403,6 +500,83 @@ OK
 * تسجيل Service Provider
 * تسجيل `AuthManager` داخل Container
 * التأكد من أن `AuthManager` يتم تسجيله كـ Singleton
+
+### AuthManager Contract
+
+* التأكد من وجود `login()`
+* التأكد من وجود `logout()`
+* التأكد من وجود `check()`
+* التأكد من وجود `user()`
+
+---
+
+# Generalized Login API
+
+تم تغيير تصميم `login()` من API يعتمد على identifier محدد إلى API عام.
+
+### Previous API
+
+كان الاستخدام:
+
+```php
+$authManager->login(
+    'user@example.com',
+    'password'
+);
+```
+
+وكان `AuthManager` يحول الـ identifier داخليًا إلى:
+
+```php
+[
+    'email' => $identifier,
+    'password' => $password,
+]
+```
+
+هذا التصميم كان يفرض استخدام email.
+
+---
+
+### Current API
+
+أصبح الاستخدام:
+
+```php
+$authManager->login([
+    'email' => 'user@example.com',
+    'password' => 'password',
+]);
+```
+
+وبذلك أصبح بإمكان التطبيق تحديد نوع الـ identifier بنفسه.
+
+مثال username:
+
+```php
+$authManager->login([
+    'username' => 'ahmed',
+    'password' => 'password',
+]);
+```
+
+مثال phone:
+
+```php
+$authManager->login([
+    'phone' => '775848986',
+    'password' => 'password',
+]);
+```
+
+مثال identifier مخصص:
+
+```php
+$authManager->login([
+    'employee_id' => 'EMP-1001',
+    'password' => 'password',
+]);
+```
 
 ---
 
@@ -439,7 +613,20 @@ $guard
     ->andReturn(true);
 ```
 
-هذا يسمح بالتأكد من أن `AuthManager` يستدعي Laravel Authentication بالطريقة الصحيحة دون الحاجة إلى قاعدة بيانات أو مستخدم حقيقي.
+كما يتم اختبار أن credentials غير المرتبطة بـ email يتم تمريرها أيضًا:
+
+```php
+$guard
+    ->shouldReceive('attempt')
+    ->once()
+    ->with([
+        'username' => 'ahmed',
+        'password' => 'correct-password',
+    ])
+    ->andReturn(true);
+```
+
+هذا يثبت أن `AuthManager` لا يفرض نوعًا محددًا من الـ identifier.
 
 ---
 
@@ -519,7 +706,24 @@ Implementation
 
 ---
 
-## 3. Singleton Binding
+## 3. Generalized Credentials
+
+لا يقوم `AuthManager` بتحديد ما إذا كان المستخدم يستخدم:
+
+```text
+email
+username
+phone
+employee_id
+```
+
+بل يستقبل credentials عامة ويمررها إلى Laravel Guard.
+
+هذا القرار يجعل الحزمة أكثر قابلية لإعادة الاستخدام في تطبيقات مختلفة.
+
+---
+
+## 4. Singleton Binding
 
 تم استخدام:
 
@@ -544,6 +748,7 @@ $this->app->bind()
 ```text
 Application
      │
+     │ credentials
      ▼
 AuthManagerInterface
      │
@@ -562,6 +767,8 @@ Guard
      └── user()
 ```
 
+في عملية تسجيل الدخول لا يتم تعديل credentials داخل `AuthManager`.
+
 ---
 
 # Current Limitations
@@ -570,14 +777,14 @@ Guard
 
 حاليًا:
 
-* `identifier` يتم التعامل معه كـ email.
-* لا يوجد دعم لتغيير نوع الـ identifier.
+* لا يوجد تحديد مخصص لنوع identifier داخل الحزمة.
 * لا توجد معالجة مخصصة لأخطاء Authentication.
 * لا توجد Exceptions مخصصة للحزمة.
 * لا توجد Events خاصة بالمصادقة.
 * لا توجد API خاصة بالـ Authentication.
 * لا يوجد Token Authentication داخل الحزمة.
 * لا توجد Guards مخصصة.
+* لا يوجد دعم لتحديد Guard مختلف من خلال API مخصص.
 
 هذه الأمور لن تتم إضافتها إلا بعد تحديد التصميم النهائي للحزمة.
 
@@ -596,25 +803,22 @@ Guard
 d8adbf4 feat: add authentication manager container binding
 34d9680 feat: implement authentication manager
 6b05e30 docs: document authentication manager
+bce053b docs: finalize authentication manager
 ```
 
-يجب التأكد من أن المستودع نظيف قبل الانتقال إلى المرحلة التالية:
+يتم تطوير التغييرات الجديدة في Feature Branch منفصل عن `develop`.
 
-```bash
-git status
-```
-
-والنتيجة المتوقعة:
+الفرع الحالي لهذه المرحلة:
 
 ```text
-nothing to commit, working tree clean
+feature/generalize-auth-login
 ```
 
 ---
 
 # Current Status
 
-تم الانتهاء من الأساس الأولي لـ Authentication Manager.
+تم الانتهاء من الأساس الأولي لـ Authentication Manager، وتم تعميم API الخاص بتسجيل الدخول بحيث لا يكون مرتبطًا بـ email.
 
 الحالة الحالية:
 
@@ -625,6 +829,7 @@ Service Container Binding  ✓
 Singleton Binding          ✓
 Laravel Testbench          ✓
 Unit Tests                 ✓
+Generalized Login API      ✓
 PHPDoc                     ✓
 Documentation              ✓
 ```
@@ -632,8 +837,8 @@ Documentation              ✓
 آخر اختبار ناجح:
 
 ```text
-12 tests
-15 assertions
+13 tests
+16 assertions
 OK
 ```
 
@@ -641,17 +846,15 @@ OK
 
 # Next Phase
 
-المرحلة التالية ستكون تطوير Authentication Flow بشكل تدريجي.
-
-قبل إضافة ميزات كبيرة، سيتم تحديد الـ API النهائي للحزمة، ثم بناء المكونات خطوة بخطوة.
+بعد تثبيت هذه المرحلة، ستكون الخطوة التالية تطوير Authentication Flow بشكل تدريجي.
 
 الأولوية ستكون:
 
-1. تحديد شكل `identifier` النهائي.
-2. تحديد طريقة التعامل مع Authentication failures.
-3. تحديد Exceptions الخاصة بالحزمة عند الحاجة.
-4. تحديد ما إذا كانت الحزمة ستدعم أكثر من Guard.
-5. تحديد API النهائي لـ Authentication Manager.
+1. تحديد طريقة التعامل مع Authentication failures.
+2. تحديد Exceptions الخاصة بالحزمة عند الحاجة.
+3. تحديد ما إذا كانت الحزمة ستدعم أكثر من Guard.
+4. تحديد API النهائي لاختيار Guard.
+5. تحديد دعم Token Authentication إذا كان ضمن نطاق الحزمة.
 6. كتابة الاختبارات قبل تنفيذ السلوك الجديد.
 7. تحديث التوثيق مع كل مرحلة.
 8. تثبيت كل مرحلة مستقرة في Git.
