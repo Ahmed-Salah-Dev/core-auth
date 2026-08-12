@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AhmedSalahDev\CoreAuth\Services;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 
 final class AuthManager implements AuthManagerInterface
@@ -63,5 +64,12 @@ final class AuthManager implements AuthManagerInterface
         return $this->auth
             ->guard()
             ->user();
+    }
+
+    public function guard(string $name): GuardInterface
+    {
+        return new AuthGuard(
+            $this->auth->guard($name)
+        );
     }
 }

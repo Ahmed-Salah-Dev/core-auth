@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Contracts\Auth\Guard as LaravelGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
@@ -254,5 +256,23 @@ final class AuthManagerTest extends TestCase
         $this->authManager->logout();
 
         $this->assertTrue(true);
+    }
+
+    public function test_guard_returns_auth_guard_for_the_given_name(): void
+    {
+        $guard = Mockery::mock(LaravelGuard::class);
+
+        $this->auth
+            ->shouldReceive('guard')
+            ->once()
+            ->with('api')
+            ->andReturn($guard);
+
+        $result = $this->authManager->guard('api');
+
+        $this->assertInstanceOf(
+            GuardInterface::class,
+            $result
+        );
     }
 }
