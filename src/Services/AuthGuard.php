@@ -6,7 +6,7 @@ namespace AhmedSalahDev\CoreAuth\Services;
 
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
 use Illuminate\Contracts\Auth\Guard as LaravelGuard;
-
+use Illuminate\Contracts\Auth\Authenticatable;
 final class AuthGuard implements GuardInterface
 {
     /**
@@ -46,8 +46,20 @@ final class AuthGuard implements GuardInterface
     /**
      * Retrieve the currently authenticated user.
      */
-    public function user(): mixed
+//    public function user(): mixed
+//
+//    {
+//        return $this->guard->user();
+//    }
+
+    /**
+     * Retrieve the currently authenticated user.
+     *
+     * @return Authenticatable|null
+     */
+    public function user(): ?Authenticatable
     {
         return $this->guard->user();
     }
+
 }

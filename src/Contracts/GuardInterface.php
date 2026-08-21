@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AhmedSalahDev\CoreAuth\Contracts;
 
+use Illuminate\Contracts\Auth\Authenticatable;
+
 interface GuardInterface
 {
     /**
@@ -26,5 +28,7 @@ interface GuardInterface
     /**
      * Retrieve the currently authenticated user.
      */
-    public function user(): mixed;
+//    public function user(): mixed;
+    public function user(): ?Authenticatable;
+
 }

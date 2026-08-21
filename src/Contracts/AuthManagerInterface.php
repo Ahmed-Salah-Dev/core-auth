@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AhmedSalahDev\CoreAuth\Contracts;
 
+use Illuminate\Contracts\Auth\Authenticatable;
+
 interface AuthManagerInterface
 {
     /**
@@ -26,7 +28,8 @@ interface AuthManagerInterface
     /**
      * Retrieve the currently authenticated user using the default guard.
      */
-    public function user(): mixed;
+//    public function user(): mixed;
+    public function user(): ?Authenticatable;
 
     /**
      * Retrieve an authentication guard by name.

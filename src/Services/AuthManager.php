@@ -7,7 +7,7 @@ namespace AhmedSalahDev\CoreAuth\Services;
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
-
+use Illuminate\Contracts\Auth\Authenticatable;
 final class AuthManager implements AuthManagerInterface
 {
     /**
@@ -59,7 +59,18 @@ final class AuthManager implements AuthManagerInterface
      *
      * @return mixed The authenticated user, or null when no user is authenticated.
      */
-    public function user(): mixed
+//    public function user(): mixed
+//    {
+//        return $this->auth
+//            ->guard()
+//            ->user();
+//    }
+    /**
+     * Retrieve the currently authenticated user using the default guard.
+     *
+     * @return Authenticatable|null
+     */
+    public function user(): ?Authenticatable
     {
         return $this->auth
             ->guard()
