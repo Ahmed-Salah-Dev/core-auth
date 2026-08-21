@@ -10,7 +10,7 @@ use Illuminate\Contracts\Auth\Guard as LaravelGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-
+use Illuminate\Contracts\Auth\Authenticatable;
 final class AuthGuardTest extends TestCase
 {
     private MockInterface $guard;
@@ -114,11 +114,25 @@ final class AuthGuardTest extends TestCase
         );
     }
 
+//    public function test_user_returns_authenticated_user(): void
+//    {
+//        $user = new \stdClass();
+//        $user->id = 1;
+//        $user->email = 'user@example.com';
+//
+//        $this->guard
+//            ->shouldReceive('user')
+//            ->once()
+//            ->andReturn($user);
+//
+//        $this->assertSame(
+//            $user,
+//            $this->authGuard->user()
+//        );
+//    }
     public function test_user_returns_authenticated_user(): void
     {
-        $user = new \stdClass();
-        $user->id = 1;
-        $user->email = 'user@example.com';
+        $user = Mockery::mock(Authenticatable::class);
 
         $this->guard
             ->shouldReceive('user')
@@ -130,7 +144,6 @@ final class AuthGuardTest extends TestCase
             $this->authGuard->user()
         );
     }
-
     public function test_user_returns_null_when_user_is_not_authenticated(): void
     {
         $this->guard

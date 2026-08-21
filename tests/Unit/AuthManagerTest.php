@@ -12,7 +12,7 @@ use Illuminate\Contracts\Auth\Guard as LaravelGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-
+use Illuminate\Contracts\Auth\Authenticatable;
 final class AuthManagerTest extends TestCase
 {
     private MockInterface $auth;
@@ -214,11 +214,32 @@ final class AuthManagerTest extends TestCase
     /**
      * Verify that user returns the currently authenticated user.
      */
+//    public function test_user_returns_authenticated_user(): void
+//    {
+//        $user = new \stdClass();
+//        $user->id = 1;
+//        $user->email = 'user@example.com';
+//
+//        $guard = Mockery::mock();
+//
+//        $guard
+//            ->shouldReceive('user')
+//            ->once()
+//            ->andReturn($user);
+//
+//        $this->auth
+//            ->shouldReceive('guard')
+//            ->once()
+//            ->andReturn($guard);
+//
+//        $result = $this->authManager->user();
+//
+//        $this->assertSame($user, $result);
+//    }
+
     public function test_user_returns_authenticated_user(): void
     {
-        $user = new \stdClass();
-        $user->id = 1;
-        $user->email = 'user@example.com';
+        $user = Mockery::mock(Authenticatable::class);
 
         $guard = Mockery::mock();
 
@@ -236,7 +257,6 @@ final class AuthManagerTest extends TestCase
 
         $this->assertSame($user, $result);
     }
-
     /**
      * Verify that logout calls the logout method on the authentication guard.
      */
