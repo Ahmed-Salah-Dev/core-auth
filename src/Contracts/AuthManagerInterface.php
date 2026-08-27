@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AhmedSalahDev\CoreAuth\Contracts;
 
+use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 interface AuthManagerInterface
@@ -12,6 +13,8 @@ interface AuthManagerInterface
      * Attempt to authenticate a user using the default guard.
      *
      * @param array<string, mixed> $credentials
+     *
+     * @throws AuthenticationException
      */
     public function login(array $credentials): bool;
 
@@ -28,7 +31,6 @@ interface AuthManagerInterface
     /**
      * Retrieve the currently authenticated user using the default guard.
      */
-//    public function user(): mixed;
     public function user(): ?Authenticatable;
 
     /**

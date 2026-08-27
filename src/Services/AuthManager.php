@@ -6,8 +6,11 @@ namespace AhmedSalahDev\CoreAuth\Services;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
+use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Throwable;
+
 final class AuthManager implements AuthManagerInterface
 {
     /**
@@ -27,9 +30,17 @@ final class AuthManager implements AuthManagerInterface
      */
     public function login(array $credentials): bool
     {
-        return $this->auth
-            ->guard()
-            ->attempt($credentials);
+        try {
+            return $this->auth
+                ->guard()
+                ->attempt($credentials);
+        } catch (Throwable $exception) {
+            throw new AuthenticationException(
+                $exception->getMessage(),
+                (int) $exception->getCode(),
+                $exception
+            );
+        }
     }
 
     /**
@@ -55,17 +66,6 @@ final class AuthManager implements AuthManagerInterface
     }
 
     /**
-     * Retrieve the currently authenticated user.
-     *
-     * @return mixed The authenticated user, or null when no user is authenticated.
-     */
-//    public function user(): mixed
-//    {
-//        return $this->auth
-//            ->guard()
-//            ->user();
-//    }
-    /**
      * Retrieve the currently authenticated user using the default guard.
      *
      * @return Authenticatable|null
@@ -76,7 +76,6 @@ final class AuthManager implements AuthManagerInterface
             ->guard()
             ->user();
     }
-
     public function guard(string $name): GuardInterface
     {
         return new AuthGuard(
