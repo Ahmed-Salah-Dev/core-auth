@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
+use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use AhmedSalahDev\CoreAuth\Services\AuthGuard;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard as LaravelGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-use Illuminate\Contracts\Auth\Authenticatable;
+use RuntimeException;
 final class AuthGuardTest extends TestCase
 {
     private MockInterface $guard;
@@ -114,22 +116,6 @@ final class AuthGuardTest extends TestCase
         );
     }
 
-//    public function test_user_returns_authenticated_user(): void
-//    {
-//        $user = new \stdClass();
-//        $user->id = 1;
-//        $user->email = 'user@example.com';
-//
-//        $this->guard
-//            ->shouldReceive('user')
-//            ->once()
-//            ->andReturn($user);
-//
-//        $this->assertSame(
-//            $user,
-//            $this->authGuard->user()
-//        );
-//    }
     public function test_user_returns_authenticated_user(): void
     {
         $user = Mockery::mock(Authenticatable::class);
@@ -144,6 +130,7 @@ final class AuthGuardTest extends TestCase
             $this->authGuard->user()
         );
     }
+
     public function test_user_returns_null_when_user_is_not_authenticated(): void
     {
         $this->guard
@@ -154,5 +141,60 @@ final class AuthGuardTest extends TestCase
         $this->assertNull(
             $this->authGuard->user()
         );
+    }
+
+    public function test_login_throws_authentication_exception_when_guard_fails_unexpectedly(): void
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+            'password' => 'correct-password',
+        ];
+
+        $this->guard
+            ->shouldReceive('attempt')
+            ->once()
+            ->with($credentials)
+            ->andThrow(
+                new RuntimeException('Unexpected authentication failure.')
+            );
+
+        $this->expectException(
+            AuthenticationException::class
+        );
+
+        $this->expectExceptionMessage(
+            'Unexpected authentication failure.'
+        );
+
+        $this->authGuard->login($credentials);
+    }
+
+    public function test_login_preserves_the_original_exception(): void
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+            'password' => 'correct-password',
+        ];
+
+        $originalException = new \RuntimeException(
+            'Unexpected authentication failure.'
+        );
+
+        $this->guard
+            ->shouldReceive('attempt')
+            ->once()
+            ->with($credentials)
+            ->andThrow($originalException);
+
+        try {
+            $this->authGuard->login($credentials);
+
+            $this->fail('AuthenticationException was not thrown.');
+        } catch (AuthenticationException $exception) {
+            $this->assertSame(
+                $originalException,
+                $exception->getPrevious()
+            );
+        }
     }
 }

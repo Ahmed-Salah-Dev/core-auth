@@ -6,13 +6,16 @@ namespace Tests\Unit;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
+use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Contracts\Auth\Guard as LaravelGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
-use Illuminate\Contracts\Auth\Authenticatable;
+use RuntimeException;
+use Illuminate\Contracts\Auth\Guard as LaravelGuard;
+
 final class AuthManagerTest extends TestCase
 {
     private MockInterface $auth;
@@ -115,6 +118,33 @@ final class AuthManagerTest extends TestCase
         );
     }
 
+    public function test_login_throws_authentication_exception_when_guard_fails_unexpectedly(): void
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+            'password' => 'correct-password',
+        ];
+
+        $guard = Mockery::mock();
+
+        $guard
+            ->shouldReceive('attempt')
+            ->once()
+            ->with($credentials)
+            ->andThrow(new RuntimeException('Unexpected authentication failure.'));
+        $this->auth
+            ->shouldReceive('guard')
+            ->once()
+            ->andReturn($guard);
+
+        $this->expectException(AuthenticationException::class);
+
+        $this->expectExceptionMessage(
+            'Unexpected authentication failure.'
+        );
+
+        $this->authManager->login($credentials);
+    }
     /**
      * Verify that login accepts credentials that do not use email
      * as the authentication identifier.
@@ -214,28 +244,6 @@ final class AuthManagerTest extends TestCase
     /**
      * Verify that user returns the currently authenticated user.
      */
-//    public function test_user_returns_authenticated_user(): void
-//    {
-//        $user = new \stdClass();
-//        $user->id = 1;
-//        $user->email = 'user@example.com';
-//
-//        $guard = Mockery::mock();
-//
-//        $guard
-//            ->shouldReceive('user')
-//            ->once()
-//            ->andReturn($user);
-//
-//        $this->auth
-//            ->shouldReceive('guard')
-//            ->once()
-//            ->andReturn($guard);
-//
-//        $result = $this->authManager->user();
-//
-//        $this->assertSame($user, $result);
-//    }
 
     public function test_user_returns_authenticated_user(): void
     {
