@@ -2,71 +2,105 @@
 
 ## Phase
 
-Authentication Manager, Generalized Login, Guard Support, Typed Authenticated User Support, and Authentication Exception Integration
-
-## Goal
-
-إنشاء طبقة موحدة وقابلة للتوسع للتعامل مع نظام المصادقة في Laravel، مع فصل الحزمة عن الاستخدام المباشر لتفاصيل Authentication قدر الإمكان.
-
-تهدف هذه المرحلة إلى بناء أساس واضح وقابل للاختبار والتوسع لطبقة المصادقة داخل الحزمة، مع الاعتماد على:
-
-* Laravel Contracts
-* Dependency Injection
-* Laravel Service Container
-* Laravel Testbench
-* PHPUnit
-* Mockery
-* Custom Authentication Exception Handling
-
-كما تم تطوير واجهة `login()` لتقبل credentials عامة دون فرض نوع محدد من identifiers، وإضافة دعم لاختيار Guard محدد من خلال abstraction مستقل، مع استخدام Laravel `Authenticatable` Contract لتمثيل المستخدم authenticated بشكل typed وواضح.
-
-بالإضافة إلى ذلك، تم إضافة طبقة موحدة لمعالجة الاستثناءات غير المتوقعة أثناء عملية Authentication من خلال `AuthenticationException` الخاصة بالحزمة، مع الحفاظ على الاستثناء الأصلي كـ previous exception.
+**Authentication Manager, Generalized Login, Guard Support, Typed Authenticated User Support, Authentication Exception Integration, and Authentication Events Integration**
 
 ---
 
-# What Was Implemented
+# 1. Overview
 
-تم تنفيذ المكونات والتغييرات التالية:
+تم بناء طبقة Authentication موحدة داخل حزمة `core-auth` بهدف توفير API واضحة وقابلة للتوسع للتعامل مع Laravel Authentication، مع تقليل الارتباط المباشر بتفاصيل Laravel Authentication Infrastructure.
 
-* إنشاء `AuthManagerInterface`
-* إنشاء `AuthManager`
-* إنشاء `GuardInterface`
-* إنشاء `AuthGuard`
-* إنشاء `AuthenticationException`
-* تسجيل `AuthManagerInterface` داخل Laravel Service Container
-* ربط `AuthManagerInterface` بـ `AuthManager`
-* تسجيل `AuthManager` باستخدام `singleton`
-* استخدام Laravel `AuthFactory`
-* استخدام Constructor Dependency Injection
-* فصل Contract عن Implementation
-* تعميم API الخاص بـ `login()`
-* إزالة الاعتماد على `email` كـ identifier إجباري
-* دعم credentials عامة
-* دعم أنواع مختلفة من identifiers
-* إضافة Guard abstraction
-* دعم الحصول على Guard باسم محدد
-* استخدام `Illuminate\Contracts\Auth\Authenticatable`
-* جعل `user()` يعيد `Authenticatable|null`
-* دعم حالة عدم وجود مستخدم authenticated من خلال `null`
-* إضافة Authentication Exception abstraction
-* تحويل الاستثناءات غير المتوقعة أثناء `login()` إلى `AuthenticationException`
-* الحفاظ على الاستثناء الأصلي باستخدام `previous exception`
-* تطبيق Authentication Exception handling في `AuthManager`
-* تطبيق Authentication Exception handling في `AuthGuard`
-* إضافة اختبارات للتأكد من تحويل الاستثناءات
-* إضافة اختبار للتأكد من الحفاظ على الاستثناء الأصلي
-* إضافة Unit Tests
-* إضافة Contract Tests
-* إضافة Service Provider Tests
-* استخدام Laravel Testbench
-* استخدام Mockery لعزل dependencies
-* إضافة PHPDoc للدوال الأساسية
-* تحديث الاختبارات لتتوافق مع typed authenticated user contract
-* تحديث التوثيق ليعكس التصميم الفعلي الحالي
+تعتمد هذه الطبقة على مفهوم:
+
+```text
+Contract → Implementation → Laravel Authentication
+```
+
+بحيث يتعامل التطبيق مع Contracts الخاصة بالحزمة، بينما تتولى الحزمة عملية الربط مع Laravel Authentication.
+
+التصميم الحالي يوفر:
+
+```text
+AuthManagerInterface
+        │
+        ▼
+    AuthManager
+        │
+        ├── Default Guard
+        │
+        └── Named Guard
+                │
+                ▼
+            AuthGuard
+                │
+                ▼
+          GuardInterface
+```
+
+كما تمت إضافة طبقة موحدة لمعالجة الأخطاء غير المتوقعة:
+
+```text
+Laravel Authentication Error
+          │
+          ▼
+AuthenticationException
+          │
+          ▼
+Application
+```
+
+بالإضافة إلى ذلك، تم اختبار تكامل Laravel Authentication Events مع الحزمة من خلال Integration Tests.
 
 ---
 
-# Project Structure
+# 2. Goals
+
+الهدف الرئيسي من هذه المرحلة هو إنشاء أساس قوي وقابل للتوسع لطبقة Authentication.
+
+الأهداف الأساسية:
+
+* توفير Authentication Manager موحد.
+* فصل Contract عن Implementation.
+* استخدام Laravel Authentication Contracts.
+* دعم Dependency Injection.
+* دعم Laravel Service Container.
+* دعم Generalized Login Credentials.
+* عدم فرض `email` كـ identifier.
+* دعم Named Guards.
+* توفير Guard abstraction خاص بالحزمة.
+* توفير Typed Authenticated User.
+* دعم `Authenticatable|null`.
+* توفير Authentication Exception Boundary.
+* الحفاظ على Previous Exception.
+* اختبار Authentication behavior باستخدام Unit Tests.
+* اختبار Laravel integration باستخدام Testbench.
+* التحقق من Laravel Authentication Events.
+* الحفاظ على الفرق بين Authentication Failure وUnexpected Exception.
+* توفير بنية قابلة للتوسع للميزات المستقبلية.
+
+---
+
+# 3. Technologies Used
+
+تم بناء واختبار هذه المرحلة باستخدام:
+
+```text
+PHP 8.2.12
+Laravel Framework
+PHPUnit 11.5.56
+Laravel Testbench
+Mockery
+Composer
+Git
+```
+
+ويجب اعتبار `composer.json` المصدر النهائي للـ dependencies والإصدارات المستخدمة في المشروع.
+
+---
+
+# 4. Implemented Components
+
+المكونات الرئيسية الحالية:
 
 ```text
 src/
@@ -78,77 +112,335 @@ src/
 │   └── AuthenticationException.php
 │
 ├── Services/
-│   ├── AuthGuard.php
-│   └── AuthManager.php
+│   ├── AuthManager.php
+│   └── AuthGuard.php
 │
 └── CoreAuthServiceProvider.php
+```
 
+الاختبارات:
+
+```text
 tests/
-└── Unit/
-    ├── AuthGuardTest.php
-    ├── AuthManagerContractTest.php
-    ├── AuthManagerTest.php
-    └── CoreAuthServiceProviderTest.php
+├── Unit/
+│   ├── AuthGuardTest.php
+│   ├── AuthManagerContractTest.php
+│   ├── AuthManagerTest.php
+│   └── CoreAuthServiceProviderTest.php
+│
+└── Integration/
+    └── AuthenticationEventsTest.php
+```
 
+التوثيق:
+
+```text
 docs/
 └── 04-auth-manager.md
 ```
 
 ---
 
-# Architecture
+# 5. Architecture
 
-يعتمد التصميم الحالي على فصل Contract عن Implementation، مع استخدام Laravel Authentication Contracts للوصول إلى نظام المصادقة.
-
-التصميم الفعلي الحالي:
+المعمارية الحالية:
 
 ```text
-                    Application
-                         │
-                         ▼
-               AuthManagerInterface
-                         │
-                         ▼
-                    AuthManager
-                    /         \
-                   /           \
-                  ▼             ▼
-          Default Guard     Named Guard
-                │                │
-                ▼                ▼
-        Laravel Guard       AuthGuard
-                │                │
-                │                ▼
-                │         GuardInterface
-                │
-                ▼
-        AuthenticationException
+                         Application
+                              │
+                              ▼
+                    AuthManagerInterface
+                              │
+                              ▼
+                         AuthManager
+                       /            \
+                      /              \
+                     ▼                ▼
+             Default Guard       Named Guard
+                     │                │
+                     ▼                ▼
+             Laravel Guard        AuthGuard
+                                      │
+                                      ▼
+                                GuardInterface
 ```
 
-يوجد مساران رئيسيان للتعامل مع Authentication:
-
-1. Default Guard من خلال `AuthManager`
-2. Named Guard من خلال `AuthManager` و`AuthGuard`
-
-وتوجد طبقة موحدة للتعامل مع الاستثناءات غير المتوقعة أثناء `login()`:
+أما Authentication Exception Boundary:
 
 ```text
-Laravel / Guard Exception
-          │
-          ▼
-AuthenticationException
-          │
-          ▼
 Application
+     │
+     ▼
+AuthManager / AuthGuard
+     │
+     ▼
+Laravel Guard
+     │
+     │ unexpected Throwable
+     ▼
+AuthenticationException
+     │
+     ▼
+Application
+```
+
+أما Authentication Events:
+
+```text
+Application
+     │
+     ▼
+AuthManager
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+Laravel Authentication
+     │
+     ├── Attempting
+     ├── Failed
+     ├── Authenticated
+     ├── Login
+     └── Logout
+```
+
+الحزمة لا تقوم بإنشاء Events مخصصة في هذه المرحلة، وإنما تعتمد على Laravel Authentication Events وتتحقق من تكاملها الصحيح مع Authentication flow.
+
+---
+
+# 6. AuthManagerInterface
+
+المسار:
+
+```text
+src/Contracts/AuthManagerInterface.php
+```
+
+يمثل `AuthManagerInterface` العقد الرئيسي الذي يتعامل معه التطبيق.
+
+العمليات الحالية:
+
+```php
+public function login(array $credentials): bool;
+
+public function logout(): void;
+
+public function check(): bool;
+
+public function user(): ?Authenticatable;
+
+public function guard(string $name): GuardInterface;
+```
+
+ويعتمد على:
+
+```php
+use Illuminate\Contracts\Auth\Authenticatable;
+```
+
+لتمثيل المستخدم authenticated.
+
+---
+
+# 7. AuthManagerInterface Responsibilities
+
+## 7.1 login()
+
+التوقيع:
+
+```php
+public function login(array $credentials): bool;
+```
+
+تستقبل العملية credentials عامة:
+
+```php
+[
+    'email' => 'user@example.com',
+    'password' => 'password',
+]
+```
+
+ولا تفرض الحزمة identifier محددًا.
+
+يمكن أن تكون credentials:
+
+```text
+email
+username
+phone
+employee_id
+national_id
+custom identifier
+```
+
+بحسب Authentication Guard وUser Provider المستخدمين من التطبيق.
+
+القيم المرجعة:
+
+```text
+true
+```
+
+عند نجاح Authentication.
+
+أو:
+
+```text
+false
+```
+
+عند رفض credentials بشكل طبيعي.
+
+أما عند حدوث خطأ غير متوقع:
+
+```text
+AuthenticationException
 ```
 
 ---
 
-# Default Guard
+## 7.2 logout()
 
-يستخدم `AuthManager` الـ default guard من خلال Laravel `AuthFactory`.
+التوقيع:
 
-التدفق:
+```php
+public function logout(): void;
+```
+
+تقوم بتسجيل خروج المستخدم الحالي من خلال الـ default guard.
+
+---
+
+## 7.3 check()
+
+التوقيع:
+
+```php
+public function check(): bool;
+```
+
+تتحقق من وجود مستخدم authenticated.
+
+النتائج:
+
+```text
+true  → authenticated
+false → unauthenticated
+```
+
+---
+
+## 7.4 user()
+
+التوقيع:
+
+```php
+public function user(): ?Authenticatable;
+```
+
+ترجع المستخدم authenticated الحالي.
+
+الحالات:
+
+```text
+Authenticated
+     │
+     ▼
+Authenticatable
+```
+
+أو:
+
+```text
+Unauthenticated
+     │
+     ▼
+null
+```
+
+---
+
+## 7.5 guard()
+
+التوقيع:
+
+```php
+public function guard(string $name): GuardInterface;
+```
+
+تسمح بالحصول على Guard باسم محدد:
+
+```php
+$guard = $authManager->guard('api');
+```
+
+القيمة المرجعة:
+
+```text
+GuardInterface
+```
+
+وليس Laravel Guard مباشرة.
+
+---
+
+# 8. AuthManager
+
+المسار:
+
+```text
+src/Services/AuthManager.php
+```
+
+يقوم `AuthManager` بتنفيذ:
+
+```php
+AuthManagerInterface
+```
+
+وهو نقطة الدخول الرئيسية إلى Authentication abstraction الخاصة بالحزمة.
+
+يعتمد على:
+
+```php
+Illuminate\Contracts\Auth\Factory
+```
+
+ويتم حقنه باستخدام Constructor Dependency Injection.
+
+---
+
+# 9. Dependency Injection
+
+التصميم:
+
+```php
+public function __construct(
+    private readonly AuthFactory $auth
+) {
+}
+```
+
+بدل إنشاء Authentication Manager داخليًا، يتم تمرير dependency من Laravel Container.
+
+الفوائد:
+
+```text
+Loose Coupling
+Testability
+Maintainability
+Extensibility
+```
+
+كما يتم حقن Laravel Guard داخل `AuthGuard`.
+
+---
+
+# 10. AuthManager Login
+
+التدفق الأساسي:
 
 ```text
 AuthManager
@@ -158,42 +450,257 @@ AuthFactory::guard()
      │
      ▼
 Default Laravel Guard
+     │
+     ▼
+attempt($credentials)
 ```
 
-ويتم من خلال هذا المسار تنفيذ:
-
-* `login()`
-* `logout()`
-* `check()`
-* `user()`
-
-أما في حالة حدوث استثناء غير متوقع أثناء `login()`:
+في حالة نجاح Authentication:
 
 ```text
+attempt()
+    │
+    ▼
+true
+```
+
+في حالة فشل credentials:
+
+```text
+attempt()
+    │
+    ▼
+false
+```
+
+في حالة حدوث exception:
+
+```text
+attempt()
+    │
+    ▼
+Throwable
+    │
+    ▼
+AuthenticationException
+```
+
+ويتم الاحتفاظ بالاستثناء الأصلي.
+
+---
+
+# 11. Generalized Login
+
+كان التصميم السابق يفرض شكلًا محددًا لعملية Login.
+
+مثال:
+
+```php
+$authManager->login(
+    'user@example.com',
+    'password'
+);
+```
+
+هذا التصميم يربط Authentication Manager بشكل identifier محدد.
+
+تم تغيير ذلك إلى:
+
+```php
+$authManager->login([
+    'email' => 'user@example.com',
+    'password' => 'password',
+]);
+```
+
+وأصبحت مسؤولية تحديد identifier لدى التطبيق وLaravel Authentication.
+
+---
+
+# 12. Authentication Identifier Flexibility
+
+لا تقوم الحزمة بتحديد أن تسجيل الدخول يجب أن يتم باستخدام email.
+
+## Email
+
+```php
+$authManager->login([
+    'email' => 'user@example.com',
+    'password' => 'password',
+]);
+```
+
+## Username
+
+```php
+$authManager->login([
+    'username' => 'ahmed',
+    'password' => 'password',
+]);
+```
+
+## Phone
+
+```php
+$authManager->login([
+    'phone' => '777123456',
+    'password' => 'password',
+]);
+```
+
+## Employee ID
+
+```php
+$authManager->login([
+    'employee_id' => 'EMP-1001',
+    'password' => 'password',
+]);
+```
+
+## Custom Identifier
+
+```php
+$authManager->login([
+    'national_id' => '123456789',
+    'password' => 'password',
+]);
+```
+
+المبدأ الأساسي:
+
+```text
+AuthManager does not decide the identifier.
+```
+
+بل يقوم بتمرير credentials إلى Laravel Guard.
+
+---
+
+# 13. Responsibility Boundary
+
+يجب الحفاظ على الفصل التالي:
+
+```text
+Application
+     │
+     │ defines credentials
+     ▼
 AuthManager
      │
+     │ passes credentials
      ▼
-Default Laravel Guard
-     │
-     │ throws Throwable
-     ▼
-AuthenticationException
+Laravel Guard
      │
      ▼
-Application
+User Provider
+     │
+     ▼
+Authentication System
+```
+
+`AuthManager` لا يقرر:
+
+* ما هو identifier الصحيح.
+* كيف يتم البحث عن المستخدم.
+* كيف يتم تخزين المستخدم.
+* كيف يتم التحقق من password.
+* ما هو User Model.
+* ما هو User Provider المستخدم.
+
+هذه مسؤوليات Laravel Authentication والتطبيق.
+
+---
+
+# 14. Guard Support
+
+تمت إضافة abstraction مستقل للتعامل مع Guards.
+
+المكونات:
+
+```text
+src/Contracts/GuardInterface.php
+src/Services/AuthGuard.php
+```
+
+الهدف هو منع التطبيق من الارتباط مباشرة بـ Laravel Guard implementation.
+
+---
+
+# 15. GuardInterface
+
+المسار:
+
+```text
+src/Contracts/GuardInterface.php
+```
+
+العمليات:
+
+```php
+public function login(array $credentials): bool;
+
+public function logout(): void;
+
+public function check(): bool;
+
+public function user(): ?Authenticatable;
 ```
 
 ---
 
-# Named Guard
+# 16. AuthGuard
 
-عند طلب Guard باسم محدد:
+المسار:
 
-```php
-$authManager->guard('api');
+```text
+src/Services/AuthGuard.php
 ```
 
-يقوم `AuthManager` بالحصول على Laravel Guard المطلوب ثم تغليفه داخل `AuthGuard`.
+`AuthGuard` هو Adapter بين:
+
+```text
+GuardInterface
+```
+
+و:
+
+```text
+Illuminate\Contracts\Auth\Guard
+```
+
+التصميم:
+
+```text
+Application
+     │
+     ▼
+GuardInterface
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+Laravel Guard
+```
+
+يعتمد على Constructor Injection:
+
+```php
+public function __construct(
+    private readonly LaravelGuard $guard
+) {
+}
+```
+
+---
+
+# 17. Named Guard
+
+يمكن الحصول على Guard باسم محدد:
+
+```php
+$guard = $authManager->guard('api');
+```
 
 التدفق:
 
@@ -213,736 +720,133 @@ AuthGuard
 GuardInterface
 ```
 
-وبذلك لا يتم إعادة Laravel Guard مباشرة إلى التطبيق، وإنما يتم إرجاع abstraction خاص بالحزمة:
-
-```php
-GuardInterface
-```
+وبالتالي لا يتم تسريب Laravel Guard إلى application layer.
 
 ---
 
-# AuthManagerInterface
+# 18. AuthGuard Login
 
-المسار:
-
-```text
-src/Contracts/AuthManagerInterface.php
-```
-
-يوفر `AuthManagerInterface` العقد الرئيسي للتعامل مع Authentication Manager.
-
-العمليات الحالية:
-
-```php
-public function login(array $credentials): bool;
-
-public function logout(): void;
-
-public function check(): bool;
-
-public function user(): ?Authenticatable;
-
-public function guard(string $name): GuardInterface;
-```
-
-ويستخدم الـ Contract:
-
-```php
-use Illuminate\Contracts\Auth\Authenticatable;
-```
-
-لتمثيل المستخدم authenticated.
-
-كما يوضح `login()` إمكانية إطلاق:
-
-```php
-AuthenticationException
-```
-
-عند حدوث فشل غير متوقع أثناء Authentication.
-
----
-
-# AuthManagerInterface Responsibilities
-
-## `login()`
-
-تحاول تسجيل دخول المستخدم باستخدام credentials يتم تمريرها إلى الـ default guard.
-
-التوقيع:
-
-```php
-public function login(array $credentials): bool;
-```
-
-تستقبل:
+يقوم `AuthGuard` بتمرير credentials إلى Laravel Guard:
 
 ```text
-array<string, mixed> $credentials
-```
-
-وتعيد:
-
-```text
-true  → authentication succeeded
-false → authentication failed
-```
-
-وفي حالة حدوث استثناء غير متوقع أثناء محاولة Authentication، يتم إطلاق:
-
-```php
-AuthenticationException
-```
-
-لا يفرض الـ Contract استخدام identifier محدد.
-
-يمكن أن تحتوي credentials على:
-
-```text
-email
-username
-phone
-employee_id
-custom identifier
-```
-
-بحسب ما يدعمه التطبيق وAuthentication Guard.
-
----
-
-## `logout()`
-
-تقوم بتسجيل خروج المستخدم الحالي من خلال الـ default guard.
-
-التوقيع:
-
-```php
-public function logout(): void;
-```
-
-القيمة المرجعة:
-
-```text
-void
-```
-
----
-
-## `check()`
-
-تتحقق مما إذا كان هناك مستخدم authenticated حاليًا باستخدام الـ default guard.
-
-التوقيع:
-
-```php
-public function check(): bool;
-```
-
-النتيجة:
-
-```text
-true  → user is authenticated
-false → user is not authenticated
-```
-
----
-
-## `user()`
-
-ترجع المستخدم authenticated الحالي باستخدام الـ default guard.
-
-التوقيع:
-
-```php
-public function user(): ?Authenticatable;
-```
-
-يعتمد هذا النوع على Laravel Contract:
-
-```php
-Illuminate\Contracts\Auth\Authenticatable
-```
-
-القيمة المرجعة يمكن أن تكون:
-
-```text
-Authenticatable → عند وجود مستخدم authenticated
-null            → عند عدم وجود مستخدم authenticated
-```
-
----
-
-## `guard()`
-
-ترجع Guard abstraction باسم محدد.
-
-التوقيع:
-
-```php
-public function guard(string $name): GuardInterface;
-```
-
-مثال:
-
-```php
-$guard = $authManager->guard('api');
-```
-
-القيمة المرجعة هي:
-
-```text
-GuardInterface
-```
-
-وليس Laravel Guard مباشرة.
-
----
-
-# AuthManager
-
-المسار:
-
-```text
-src/Services/AuthManager.php
-```
-
-يقوم `AuthManager` بتنفيذ:
-
-```php
-AuthManagerInterface
-```
-
-وهو الطبقة الرئيسية التي توفر API موحدًا للتعامل مع Authentication.
-
-يعتمد `AuthManager` على Laravel Authentication من خلال:
-
-```php
-Illuminate\Contracts\Auth\Factory
-```
-
-ويتم حقن `AuthFactory` باستخدام Constructor Injection.
-
----
-
-# Constructor
-
-التصميم الحالي:
-
-```php
-public function __construct(
-    private readonly AuthFactory $auth
-) {
-}
-```
-
-يتم تمرير Laravel `AuthFactory` إلى `AuthManager` عن طريق Dependency Injection.
-
-هذا يقلل coupling ويسمح بعزل dependency أثناء الاختبارات.
-
-الفوائد:
-
-* Testability
-* Loose Coupling
-* Maintainability
-* Extensibility
-
----
-
-# AuthManager Responsibilities
-
-## `login()`
-
-تقوم بمحاولة تسجيل الدخول باستخدام الـ default guard.
-
-المنطق الأساسي:
-
-```php
-try {
-    return $this->auth
-        ->guard()
-        ->attempt($credentials);
-} catch (Throwable $exception) {
-    throw new AuthenticationException(
-        $exception->getMessage(),
-        (int) $exception->getCode(),
-        $exception
-    );
-}
-```
-
-يتم تمرير credentials كما هي إلى Laravel Guard.
-
-في حالة نجاح Authentication:
-
-```text
-true
-```
-
-في حالة فشل credentials بدون استثناء:
-
-```text
-false
-```
-
-في حالة حدوث استثناء غير متوقع:
-
-```text
-Throwable
-   │
-   ▼
-AuthenticationException
-```
-
-ويتم الاحتفاظ بالاستثناء الأصلي كـ previous exception.
-
----
-
-## `logout()`
-
-تقوم بتسجيل خروج المستخدم الحالي باستخدام الـ default guard.
-
-التنفيذ:
-
-```php
-public function logout(): void
-{
-    $this->auth
-        ->guard()
-        ->logout();
-}
-```
-
----
-
-## `check()`
-
-تتحقق من حالة Authentication الحالية باستخدام الـ default guard.
-
-التنفيذ:
-
-```php
-public function check(): bool
-{
-    return $this->auth
-        ->guard()
-        ->check();
-}
-```
-
----
-
-## `user()`
-
-ترجع المستخدم authenticated الحالي من الـ default guard.
-
-التنفيذ:
-
-```php
-public function user(): ?Authenticatable
-{
-    return $this->auth
-        ->guard()
-        ->user();
-}
-```
-
-الحالات الممكنة:
-
-```text
-Authenticated
+AuthGuard
      │
-     ▼
-Authenticatable
-```
-
-أو:
-
-```text
-Not authenticated
-     │
-     ▼
-null
-```
-
----
-
-## `guard()`
-
-تسمح بالحصول على Guard باسم محدد.
-
-التنفيذ:
-
-```php
-public function guard(string $name): GuardInterface
-{
-    return new AuthGuard(
-        $this->auth->guard($name)
-    );
-}
-```
-
-يتم الحصول على Laravel Guard من `AuthFactory` ثم تغليفه داخل `AuthGuard`.
-
----
-
-# Generalized Login API
-
-تم تطوير `login()` ليكون عامًا وغير مرتبط باستخدام email أو username.
-
-## Previous API
-
-كان التصميم السابق يعتمد على identifier محدد، مثل:
-
-```php
-$authManager->login(
-    'user@example.com',
-    'password'
-);
-```
-
-هذا التصميم يفرض شكلًا محددًا لبيانات تسجيل الدخول.
-
----
-
-## Current API
-
-أصبح `login()` يستقبل credentials كاملة:
-
-```php
-$authManager->login([
-    'email' => 'user@example.com',
-    'password' => 'password',
-]);
-```
-
-وبذلك أصبحت مسؤولية تحديد نوع identifier لدى التطبيق وLaravel Guard.
-
----
-
-# Authentication Identifier Flexibility
-
-الحزمة لا تفرض على التطبيق استخدام حقل معين لتسجيل الدخول.
-
-يمكن للتطبيق استخدام:
-
-## Email
-
-```php
-$authManager->login([
-    'email' => 'user@example.com',
-    'password' => 'correct-password',
-]);
-```
-
-## Username
-
-```php
-$authManager->login([
-    'username' => 'ahmed',
-    'password' => 'correct-password',
-]);
-```
-
-## Phone
-
-```php
-$authManager->login([
-    'phone' => '777123456',
-    'password' => 'correct-password',
-]);
-```
-
-## Employee ID
-
-```php
-$authManager->login([
-    'employee_id' => 'EMP-1001',
-    'password' => 'password',
-]);
-```
-
-## Custom Identifier
-
-يمكن استخدام أي credential structure يدعمها Authentication Guard.
-
-مثال:
-
-```php
-$authManager->login([
-    'national_id' => '123456789',
-    'password' => 'password',
-]);
-```
-
-المهم أن `AuthManager` لا يفرض نوع identifier.
-
----
-
-# Responsibility Boundary
-
-يجب الحفاظ على الفصل التالي:
-
-```text
-Application
-     │
-     │ Defines credentials
-     ▼
-AuthManager
-     │
-     │ Passes credentials
      ▼
 Laravel Guard
      │
-     │ Performs authentication
      ▼
-Authentication System
+attempt($credentials)
 ```
 
-`AuthManager` لا يقرر:
-
-* ما هو identifier الصحيح
-* كيف يتم البحث عن المستخدم
-* كيف يتم التحقق من password
-* أين يتم تخزين المستخدم
-* ما هو User Model
-
-هذه مسؤوليات Laravel Authentication وUser Provider والتطبيق.
-
----
-
-# Guard Support
-
-تمت إضافة طبقة مستقلة للتعامل مع Guards.
-
-المكونات:
-
-```text
-src/Contracts/GuardInterface.php
-src/Services/AuthGuard.php
-```
-
-الهدف هو توفير abstraction خاص بالحزمة عند التعامل مع Guard محدد.
-
----
-
-# GuardInterface
-
-المسار:
-
-```text
-src/Contracts/GuardInterface.php
-```
-
-يوفر `GuardInterface` العمليات الأساسية التي تحتاجها الحزمة عند التعامل مع Guard.
-
-العمليات الحالية:
-
-```php
-public function login(array $credentials): bool;
-
-public function logout(): void;
-
-public function check(): bool;
-
-public function user(): ?Authenticatable;
-```
-
-ويستخدم:
-
-```php
-Illuminate\Contracts\Auth\Authenticatable
-```
-
-لتمثيل المستخدم authenticated.
-
-كما يوضح `login()` إمكانية إطلاق:
-
-```php
-AuthenticationException
-```
-
-عند حدوث فشل غير متوقع أثناء Authentication.
-
----
-
-# GuardInterface Responsibilities
-
-## `login()`
-
-تحاول المصادقة باستخدام credentials:
-
-```php
-public function login(array $credentials): bool;
-```
-
-لا يتم فرض identifier معين.
-
-النتائج الممكنة:
-
-```text
-true  → authentication succeeded
-false → authentication failed
-```
-
-وفي حالة حدوث استثناء غير متوقع:
-
-```text
-AuthenticationException
-```
-
----
-
-## `logout()`
-
-تسجل خروج المستخدم الحالي:
-
-```php
-public function logout(): void;
-```
-
----
-
-## `check()`
-
-تتحقق من حالة Authentication:
-
-```php
-public function check(): bool;
-```
-
----
-
-## `user()`
-
-ترجع المستخدم authenticated الحالي:
-
-```php
-public function user(): ?Authenticatable;
-```
-
-النتيجة:
-
-```text
-Authenticatable → إذا كان المستخدم authenticated
-null            → إذا لم يكن هناك مستخدم authenticated
-```
-
----
-
-# AuthGuard
-
-المسار:
-
-```text
-src/Services/AuthGuard.php
-```
-
-يقوم `AuthGuard` بتنفيذ:
-
-```php
-GuardInterface
-```
-
-وهو Adapter يربط `GuardInterface` الخاص بالحزمة مع Laravel Guard.
-
-يعتمد على:
-
-```php
-Illuminate\Contracts\Auth\Guard
-```
-
-من خلال Constructor Injection:
-
-```php
-public function __construct(
-    private readonly LaravelGuard $guard
-) {
-}
-```
-
----
-
-# AuthGuard Responsibilities
-
-## `login()`
-
-تقوم بمحاولة المصادقة باستخدام Laravel Guard.
-
-التنفيذ الحالي يتضمن Authentication Exception handling:
-
-```php
-try {
-    return $this->guard->attempt($credentials);
-} catch (Throwable $exception) {
-    throw new AuthenticationException(
-        $exception->getMessage(),
-        (int) $exception->getCode(),
-        $exception
-    );
-}
-```
-
-في حالة نجاح Authentication:
+السلوك:
 
 ```text
 true
 ```
 
-في حالة فشل credentials:
+عند نجاح Authentication.
 
 ```text
 false
 ```
 
-في حالة حدوث استثناء غير متوقع:
+عند فشل credentials.
 
 ```text
-Throwable
-   │
-   ▼
 AuthenticationException
 ```
 
-ويتم الاحتفاظ بالاستثناء الأصلي كـ previous exception.
+عند حدوث unexpected exception.
 
 ---
 
-## `logout()`
+# 19. Typed Authenticated User
+
+تعتمد الحزمة على Laravel Contract:
 
 ```php
-public function logout(): void
-{
-    $this->guard->logout();
-}
+Illuminate\Contracts\Auth\Authenticatable
+```
+
+بدل:
+
+```php
+mixed
+```
+
+وبالتالي:
+
+```php
+public function user(): ?Authenticatable;
+```
+
+هذا يوفر:
+
+```text
+Type Safety
+Static Analysis
+IDE Support
+Maintainability
+Extensibility
 ```
 
 ---
 
-## `check()`
+# 20. User Model Independence
+
+لا تفرض الحزمة:
+
+```text
+App\Models\User
+```
+
+ولا أي Model محدد.
+
+يمكن للتطبيق استخدام أي User implementation يطبق:
 
 ```php
-public function check(): bool
-{
-    return $this->guard->check();
-}
+Authenticatable
+```
+
+وهذا يحافظ على استقلال الحزمة عن تطبيق معين.
+
+---
+
+# 21. User State
+
+يمكن استخدام:
+
+```php
+$authManager->check();
+```
+
+ثم:
+
+```php
+$user = $authManager->user();
+```
+
+عند وجود مستخدم:
+
+```text
+check() === true
+        │
+        ▼
+user() → Authenticatable
+```
+
+وعند عدم وجود مستخدم:
+
+```text
+check() === false
+        │
+        ▼
+user() → null
 ```
 
 ---
 
-## `user()`
-
-```php
-public function user(): ?Authenticatable
-{
-    return $this->guard->user();
-}
-```
-
-يعتمد `AuthGuard` على Laravel Guard لتنفيذ عملية الحصول على المستخدم.
-
----
-
-# AuthenticationException
+# 22. AuthenticationException
 
 المسار:
 
@@ -950,65 +854,45 @@ public function user(): ?Authenticatable
 src/Exceptions/AuthenticationException.php
 ```
 
-تمت إضافة `AuthenticationException` كاستثناء مخصص للحزمة للتعامل مع الأخطاء غير المتوقعة أثناء عمليات Authentication.
+تمت إضافة `AuthenticationException` كـ exception موحد على مستوى الحزمة.
 
-الهدف من هذا الاستثناء هو منع تسريب تفاصيل implementation الخاصة بـ Laravel أو dependencies إلى الطبقات الأعلى من التطبيق.
-
-التدفق:
+الهدف:
 
 ```text
-Laravel Guard
-      │
-      │ throws Throwable
-      ▼
-AuthManager / AuthGuard
-      │
-      ▼
+Laravel / Infrastructure
+          │
+          ▼
 AuthenticationException
-      │
-      │ previous exception
-      ▼
+          │
+          ▼
 Application
 ```
 
+بدل تمرير كل أنواع exceptions الناتجة من dependencies الداخلية مباشرة إلى application.
+
 ---
 
-# Exception Normalization
+# 23. Exception Normalization
 
-تقوم طبقة Authentication بتحويل الاستثناءات غير المتوقعة إلى exception موحد خاص بالحزمة.
-
-مثال:
+عند حدوث exception غير متوقع أثناء Authentication:
 
 ```text
 RuntimeException
-       │
-       ▼
+        │
+        ▼
+AuthManager / AuthGuard
+        │
+        ▼
 AuthenticationException
 ```
 
-وبذلك يستطيع التطبيق التعامل مع:
-
-```php
-AuthenticationException
-```
-
-بدل الحاجة إلى معرفة كل أنواع الاستثناءات التي يمكن أن تنتجها dependencies الداخلية.
+هذا يوفر Exception Boundary واضحًا.
 
 ---
 
-# Previous Exception Preservation
+# 24. Previous Exception Preservation
 
-عند تحويل الاستثناء الأصلي، لا يتم التخلص منه.
-
-يتم تمريره إلى:
-
-```php
-AuthenticationException
-```
-
-كـ previous exception.
-
-مثال:
+عند إنشاء `AuthenticationException` يتم الاحتفاظ بالاستثناء الأصلي:
 
 ```php
 throw new AuthenticationException(
@@ -1018,57 +902,38 @@ throw new AuthenticationException(
 );
 ```
 
-وبذلك يمكن الوصول إلى الاستثناء الأصلي من خلال:
+وبذلك:
 
 ```php
-$exception->getPrevious();
+$exception->getPrevious()
 ```
 
-وهذا يحافظ على معلومات debugging ويمنع فقدان السبب الحقيقي للمشكلة.
+يعيد الاستثناء الأصلي.
 
----
-
-# Authentication Exception Boundary
-
-حدود معالجة الاستثناءات الحالية هي:
+الفائدة:
 
 ```text
-Laravel Authentication
-        │
-        ▼
-Laravel Guard
-        │
-        ▼
-AuthManager / AuthGuard
-        │
-        │ normalize unexpected Throwable
-        ▼
-AuthenticationException
-        │
-        ▼
-Application
+Unified API
++
+Original debugging information
 ```
-
-المسؤولية الأساسية هي توفير exception type موحد على مستوى الحزمة، مع الحفاظ على السبب الأصلي.
 
 ---
 
-# Exception Behavior
+# 25. Normal Authentication Failure vs Exception
 
-يجب التفريق بين Authentication failure العادي والاستثناء غير المتوقع.
+يجب التفريق بين حالتين.
 
-## Authentication Failure
-
-عندما يرفض Laravel Guard credentials:
+## Normal Authentication Failure
 
 ```text
 attempt()
-    │
-    ▼
+     │
+     ▼
 false
 ```
 
-يتم إرجاع:
+النتيجة:
 
 ```php
 false
@@ -1076,293 +941,382 @@ false
 
 ولا يتم إطلاق `AuthenticationException`.
 
----
-
 ## Unexpected Authentication Error
 
-عندما يحدث exception أثناء Authentication:
-
 ```text
 attempt()
-    │
-    ▼
+     │
+     ▼
 Throwable
-    │
-    ▼
+     │
+     ▼
 AuthenticationException
 ```
 
-وبذلك يتم التمييز بين:
+النتيجة:
 
-```text
-Invalid credentials
-        ↓
-false
-```
-
-و:
-
-```text
-Unexpected authentication error
-        ↓
+```php
 AuthenticationException
 ```
 
-هذا الفصل مهم للحفاظ على API واضح وقابل للتعامل معه من التطبيق.
+وهذا الفصل جزء أساسي من API design.
 
 ---
 
-# Authenticated User Contract
+# 26. Laravel Authentication Events
 
-تعتمد الحزمة على Laravel Contract:
+تمت إضافة Integration Tests للتحقق من تكامل Authentication Manager مع Laravel Authentication Events.
 
-```php
-Illuminate\Contracts\Auth\Authenticatable
-```
+لا تقوم الحزمة في هذه المرحلة بإنشاء Events مخصصة.
 
-بدل فرض Model محدد على التطبيق.
+بدلًا من ذلك، يتم الاعتماد على Events التي يوفرها Laravel Authentication system.
 
-لذلك يمكن أن يكون المستخدم:
+الأحداث التي تم اختبارها:
 
 ```text
-Laravel User Model
-```
-
-أو أي implementation آخر يطبق:
-
-```php
-Authenticatable
-```
-
-وهذا يمنع الحزمة من الارتباط بـ:
-
-```text
-App\Models\User
-```
-
-أو أي User Model خاص بتطبيق معين.
-
----
-
-# User State
-
-يمكن التحقق من حالة المستخدم من خلال:
-
-```php
-$authManager->check();
-```
-
-ثم الحصول على المستخدم:
-
-```php
-$user = $authManager->user();
-```
-
-الحالات:
-
-```text
-check() === true
-        │
-        ▼
-user() returns Authenticatable
-```
-
-أو:
-
-```text
-check() === false
-        │
-        ▼
-user() returns null
-```
-
-وتعتمد النتيجة الفعلية على Laravel Guard المستخدم.
-
----
-
-# Named Guard Usage
-
-يمكن طلب Guard باسم محدد من خلال:
-
-```php
-$guard = $authManager->guard('api');
-```
-
-ثم استخدام الـ abstraction:
-
-```php
-$guard->login([
-    'email' => 'user@example.com',
-    'password' => 'password',
-]);
-```
-
-أو:
-
-```php
-$guard->check();
-```
-
-أو:
-
-```php
-$user = $guard->user();
-```
-
-أو:
-
-```php
-$guard->logout();
-```
-
-الـ application يتعامل مع:
-
-```php
-GuardInterface
-```
-
-بدل التعامل مباشرة مع:
-
-```php
-Illuminate\Contracts\Auth\Guard
+Attempting
+Failed
+Authenticated
+Login
+Logout
 ```
 
 ---
 
-# Authentication Flow
+# 27. Authentication Events Flow
 
-## Default Guard Login
-
-```text
-Application
-     │
-     │ credentials
-     ▼
-AuthManagerInterface
-     │
-     ▼
-AuthManager
-     │
-     ▼
-AuthFactory::guard()
-     │
-     ▼
-Default Laravel Guard
-     │
-     ▼
-attempt()
-     │
-     ├──► true
-     │
-     ├──► false
-     │
-     └──► Throwable
-              │
-              ▼
-    AuthenticationException
-```
-
----
-
-## Default Guard Logout
+عند تنفيذ Login:
 
 ```text
 Application
      │
      ▼
-AuthManager
-     │
-     ▼
-AuthFactory::guard()
-     │
-     ▼
-Default Laravel Guard
-     │
-     ▼
-logout()
-```
-
----
-
-## Default Guard Check
-
-```text
-Application
-     │
-     ▼
-AuthManager
-     │
-     ▼
-AuthFactory::guard()
-     │
-     ▼
-Default Laravel Guard
-     │
-     ▼
-check()
-```
-
----
-
-## Default Guard User
-
-```text
-Application
-     │
-     ▼
-AuthManager
-     │
-     ▼
-AuthFactory::guard()
-     │
-     ▼
-Default Laravel Guard
-     │
-     ▼
-user()
-     │
-     ├──► Authenticatable
-     │
-     └──► null
-```
-
----
-
-## Named Guard
-
-```text
-Application
-     │
-     │ guard name
-     ▼
-AuthManager
-     │
-     ▼
-AuthFactory::guard(name)
+AuthManager::login()
      │
      ▼
 Laravel Guard
      │
      ▼
-AuthGuard
+attempt()
+     │
+     ├── Attempting
+     │
+     ├── Failed
+     │
+     ├── Authenticated
+     │
+     └── Login
+```
+
+أما عند تنفيذ Logout:
+
+```text
+Application
      │
      ▼
-GuardInterface
+AuthManager::logout()
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+logout()
+     │
+     ▼
+Logout Event
+```
+
+ملاحظة مهمة:
+
+ترتيب الأحداث الداخلي الدقيق مسؤولية Laravel Authentication implementation، بينما اختبارات الحزمة تتحقق من أن الأحداث المتوقعة يتم إطلاقها وأن بياناتها الأساسية صحيحة.
+
+---
+
+# 28. Authentication Events Integration Test
+
+المسار:
+
+```text
+tests/Integration/AuthenticationEventsTest.php
+```
+
+تم إنشاء Integration Test مستقل لهذا الغرض.
+
+يستخدم:
+
+```php
+Orchestra\Testbench\TestCase
+```
+
+لتوفير Laravel application environment مناسب للاختبار.
+
+---
+
+# 29. Test Authentication Environment
+
+يتم تعريف Guard للاختبارات:
+
+```php
+$app['config']->set('auth.defaults.guard', 'web');
+```
+
+ثم:
+
+```php
+$app['config']->set('auth.guards.web', [
+    'driver' => 'session',
+    'provider' => 'users',
+]);
+```
+
+ويتم تعريف Test User Provider:
+
+```php
+$app['config']->set('auth.providers.users', [
+    'driver' => 'test',
+]);
+```
+
+ثم تسجيل provider:
+
+```php
+$app['auth']->provider('test', function () {
+    return new TestUserProvider();
+});
+```
+
+هذا يسمح باختبار Authentication flow دون الاعتماد على database حقيقية.
+
+---
+
+# 30. TestUser
+
+يحتوي Integration Test على `TestUser` بسيط يطبق:
+
+```php
+Illuminate\Contracts\Auth\Authenticatable
+```
+
+الغرض منه هو توفير authenticated user حقيقي بالنسبة إلى Laravel Authentication أثناء Integration Testing.
+
+وهذا يتوافق مع التصميم الحالي الذي يعتمد على:
+
+```php
+Authenticatable
+```
+
+بدل فرض User Model معين.
+
+---
+
+# 31. TestUserProvider
+
+يحتوي Integration Test على `TestUserProvider` يطبق:
+
+```php
+Illuminate\Contracts\Auth\UserProvider
+```
+
+ويوفر behavior مبسطًا للاختبار.
+
+يتم قبول:
+
+```text
+user@example.com
+```
+
+مع password:
+
+```text
+password
+```
+
+بينما يتم رفض password خاطئة.
+
+هذا يسمح باختبار:
+
+```text
+Successful Authentication
+Failed Authentication
+```
+
+داخل Laravel Authentication environment حقيقي نسبيًا.
+
+---
+
+# 32. Login Event Test
+
+يتم اختبار أن Login Event يتم إطلاقه عند نجاح authentication.
+
+يتم تسجيل listener:
+
+```php
+$this->app['events']->listen(
+    Login::class,
+    ...
+);
+```
+
+ثم تنفيذ:
+
+```php
+$auth->login([
+    'email' => 'user@example.com',
+    'password' => 'password',
+]);
+```
+
+ويتم التحقق من:
+
+```text
+Login Event exists
+Guard = web
+User = TestUser
+```
+
+وهذا لا يختبر مجرد إطلاق event فقط، بل يتحقق من البيانات الأساسية الموجودة داخله.
+
+---
+
+# 33. Failed Event Test
+
+يتم اختبار فشل Authentication:
+
+```php
+$credentials = [
+    'email' => 'user@example.com',
+    'password' => 'wrong-password',
+];
+```
+
+ثم:
+
+```php
+$result = $auth->login($credentials);
+```
+
+النتيجة:
+
+```text
+false
+```
+
+ويتم التحقق من:
+
+```text
+Failed Event exists
+Guard = web
+Credentials = original credentials
+```
+
+وهذا يؤكد أن Authentication failure الطبيعي لا يتحول إلى exception.
+
+---
+
+# 34. Logout Event Test
+
+يتم تنفيذ Login أولًا:
+
+```php
+$auth->login([
+    'email' => 'user@example.com',
+    'password' => 'password',
+]);
+```
+
+ثم:
+
+```php
+$auth->logout();
+```
+
+ويتم التحقق من:
+
+```text
+Logout Event exists
+Guard = web
+User = TestUser
 ```
 
 ---
 
-# Service Container Binding
+# 35. Attempting Event Test
 
-تم تسجيل `AuthManagerInterface` داخل Laravel Service Container.
+يتم تسجيل listener على:
 
-المسؤول عن ذلك:
+```php
+Attempting::class
+```
+
+ثم تنفيذ Login.
+
+يتم التأكد من إطلاق:
+
+```text
+Attempting
+```
+
+أثناء محاولة Authentication.
+
+---
+
+# 36. Authenticated Event Test
+
+عند نجاح Authentication يتم التحقق من:
+
+```text
+Authenticated Event exists
+Guard = web
+User = TestUser
+```
+
+وهذا يثبت أن Laravel Authentication lifecycle يعمل بشكل صحيح من خلال `AuthManager`.
+
+---
+
+# 37. Events Responsibility Boundary
+
+يجب التفريق بين:
+
+```text
+Laravel Authentication Events
+```
+
+و:
+
+```text
+Custom Package Events
+```
+
+المرحلة الحالية تختبر تكامل الحزمة مع Laravel Events فقط.
+
+لم يتم بعد تصميم:
+
+```text
+CoreAuth-specific Events
+```
+
+مثل:
+
+```text
+UserLoggedIn
+UserLoggedOut
+AuthenticationFailed
+```
+
+وأي تصميم لهذه الأحداث يجب أن يتم في Feature مستقلة بعد تحديد الحاجة المعمارية إليها.
+
+---
+
+# 38. Service Container Binding
+
+المسار:
 
 ```text
 src/CoreAuthServiceProvider.php
 ```
 
-ويتم التسجيل باستخدام:
+يتم تسجيل:
 
 ```php
 $this->app->singleton(
@@ -1371,7 +1325,7 @@ $this->app->singleton(
 );
 ```
 
-وبذلك يمكن الحصول على `AuthManager` من Laravel Container من خلال:
+وبالتالي يستطيع Laravel Container توفير:
 
 ```php
 $app->make(AuthManagerInterface::class);
@@ -1379,7 +1333,7 @@ $app->make(AuthManagerInterface::class);
 
 ---
 
-# Singleton Binding
+# 39. Singleton Binding
 
 تم استخدام:
 
@@ -1393,9 +1347,9 @@ singleton()
 bind()
 ```
 
-وبالتالي يقوم Laravel Container بإعادة نفس instance من `AuthManager` خلال دورة حياة الـ Application Container.
+والهدف هو الحصول على نفس `AuthManager` instance خلال دورة حياة Laravel Application Container.
 
-تم اختبار هذا السلوك في:
+تم اختبار هذا السلوك داخل:
 
 ```text
 CoreAuthServiceProviderTest
@@ -1403,15 +1357,9 @@ CoreAuthServiceProviderTest
 
 ---
 
-# Service Provider
+# 40. Service Provider Responsibility
 
-المسار:
-
-```text
-src/CoreAuthServiceProvider.php
-```
-
-المسؤولية الحالية للـ Service Provider هي تسجيل الخدمات الأساسية للحزمة داخل Laravel Service Container.
+المسؤولية الحالية للـ Service Provider هي تسجيل الخدمات الأساسية للحزمة.
 
 التدفق:
 
@@ -1422,254 +1370,82 @@ AuthManagerInterface
 AuthManager
 ```
 
-ويتم الاعتماد على Laravel Container لإدارة Dependency Injection.
+ولا يقوم Service Provider حاليًا بوضع Authentication business logic.
 
 ---
 
-# Dependency Injection
+# 41. Testing Strategy
 
-يعتمد `AuthManager` على Dependency Injection بدل إنشاء dependencies داخله.
-
-يتم حقن:
-
-```php
-Illuminate\Contracts\Auth\Factory
-```
-
-من خلال Constructor.
-
-كما يتم حقن Laravel Guard داخل `AuthGuard`:
-
-```php
-Illuminate\Contracts\Auth\Guard
-```
-
-من خلال Constructor.
-
-هذا يسمح بعزل dependencies أثناء الاختبارات.
-
-الفوائد:
-
-* Testability
-* Loose Coupling
-* Maintainability
-* Extensibility
-
----
-
-# Code Documentation
-
-تمت إضافة PHPDoc إلى الدوال الأساسية.
-
-يشمل ذلك:
-
-* `__construct()`
-* `login()`
-* `logout()`
-* `check()`
-* `user()`
-* `guard()`
-
-ويتم توضيح نوع credentials باستخدام:
-
-```php
-@param array<string, mixed> $credentials
-```
-
-كما يتم توضيح الاستثناء المتوقع من `login()`:
-
-```php
-@throws AuthenticationException
-```
-
-ويتم توضيح المستخدم authenticated باستخدام:
-
-```php
-@return Authenticatable|null
-```
-
-وهذا يعكس طبيعة API الحالية بشكل واضح.
-
----
-
-# Testing
-
-تم استخدام:
+تم تقسيم الاختبارات إلى نوعين:
 
 ```text
-PHPUnit 11.5.56
-Laravel Testbench
-Mockery
-PHP 8.2.12
-```
-
-لتشغيل الاختبارات:
-
-```bash
-vendor/bin/phpunit
-```
-
-الحالة الحالية:
-
-```text
-29 tests
-34 assertions
-OK
-```
-
-آخر تشغيل ناجح:
-
-```text
-............................. 29 / 29 (100%)
-
-OK (29 tests, 34 assertions)
-```
-
-ولا توجد حاليًا:
-
-```text
-Failures
-Errors
-Risky Tests
+Unit Tests
+Integration Tests
 ```
 
 ---
 
-# Testing Structure
+# 42. Unit Tests
 
-الاختبارات الحالية:
+Unit Tests تعزل dependencies باستخدام Mockery.
+
+الهدف:
 
 ```text
-tests/
-└── Unit/
-    ├── AuthGuardTest.php
-    ├── AuthManagerContractTest.php
-    ├── AuthManagerTest.php
-    └── CoreAuthServiceProviderTest.php
+اختبار behavior الخاص بالمكون
+بدون الاعتماد على Laravel Authentication حقيقي
 ```
 
 ---
 
-# AuthManager Tests
+# 43. AuthManager Tests
 
 يتم اختبار:
 
-* تطبيق `AuthManagerInterface`
-* نجاح تسجيل الدخول
-* فشل تسجيل الدخول
-* تمرير credentials إلى الـ default guard
-* دعم email credentials
-* دعم username credentials
-* دعم credentials عامة
-* التحقق من Authentication state
-* إرجاع المستخدم authenticated
-* إرجاع `null` عند عدم وجود مستخدم
-* تنفيذ logout
-* الحصول على Guard باسم محدد
-* إرجاع `GuardInterface` من `guard()`
-* تحويل unexpected authentication exceptions إلى `AuthenticationException`
-* الحفاظ على behavior الخاص بـ `false` عند فشل credentials
+* تطبيق `AuthManagerInterface`.
+* نجاح Login.
+* فشل Login.
+* تمرير credentials.
+* Generalized Credentials.
+* Email credentials.
+* Username credentials.
+* Authentication state.
+* Authenticated user.
+* Unauthenticated user.
+* Logout.
+* Named Guard.
+* Guard abstraction.
+* AuthenticationException.
+* Previous Exception.
+* Normal false behavior.
 
 ---
 
-# AuthGuard Tests
+# 44. AuthGuard Tests
 
 يتم اختبار:
 
-* تطبيق `GuardInterface`
-* نجاح تسجيل الدخول
-* فشل تسجيل الدخول
-* تنفيذ logout
-* التحقق من Authentication state
-* إرجاع المستخدم authenticated
-* إرجاع `null` عند عدم وجود مستخدم
-* تحويل unexpected authentication exceptions إلى `AuthenticationException`
-* الحفاظ على الاستثناء الأصلي كـ previous exception
+* تطبيق `GuardInterface`.
+* نجاح Login.
+* فشل Login.
+* Logout.
+* Check.
+* User.
+* Null user.
+* AuthenticationException.
+* Previous Exception.
 
 ---
 
-# Authentication Exception Tests
+# 45. Contract Tests
 
-تمت إضافة اختبارات خاصة بسلوك Authentication Exception.
-
-يتم اختبار السيناريو التالي:
+يتم التحقق من أن:
 
 ```text
-Laravel Guard
-      │
-      │ throws RuntimeException
-      ▼
-AuthManager / AuthGuard
-      │
-      ▼
-AuthenticationException
+AuthManagerInterface
 ```
 
-ويتم التأكد من:
-
-1. أن `AuthenticationException` يتم إطلاقه.
-2. أن رسالة الاستثناء الأصلي يتم الحفاظ عليها.
-3. أن الاستثناء الأصلي يتم تخزينه كـ previous exception.
-
-مثال:
-
-```php
-$originalException = new RuntimeException(
-    'Unexpected authentication failure.'
-);
-```
-
-ثم:
-
-```php
-$this->assertSame(
-    $originalException,
-    $exception->getPrevious()
-);
-```
-
-وبذلك يتم ضمان عدم فقدان السبب الأصلي للخطأ.
-
----
-
-# Authentication Failure vs Exception Testing
-
-يتم اختبار حالتين مختلفتين:
-
-## Normal Authentication Failure
-
-```text
-attempt()
-     │
-     ▼
-false
-```
-
-والنتيجة:
-
-```php
-false
-```
-
-## Unexpected Authentication Error
-
-```text
-attempt()
-     │
-     ▼
-RuntimeException
-     │
-     ▼
-AuthenticationException
-```
-
-وهذا يضمن أن Authentication failure العادي لا يتم التعامل معه كـ system exception.
-
----
-
-# AuthManager Contract Tests
-
-يتم التحقق من أن `AuthManagerInterface` يوفر العمليات الأساسية المتوقعة:
+يوفر:
 
 ```text
 login()
@@ -1679,33 +1455,147 @@ user()
 guard()
 ```
 
-ويضمن ذلك وجود API واضح وثابت لمدير المصادقة.
+وأن:
+
+```text
+AuthManager
+```
+
+يطبق الـ Contract بشكل صحيح.
 
 ---
 
-# CoreAuthServiceProvider Tests
+# 46. Service Provider Tests
 
 يتم اختبار:
 
-* تسجيل Service Provider
-* تسجيل `AuthManager`
-* ربط `AuthManagerInterface`
-* Singleton binding
-* إمكانية الحصول على الخدمة من Container
+```text
+Service Provider
+Container Binding
+Interface → Implementation
+Singleton behavior
+```
 
 ---
 
-# Mocking Strategy
+# 47. Authentication Exception Tests
+
+يتم اختبار:
+
+```text
+Unexpected Throwable
+        │
+        ▼
+AuthenticationException
+```
+
+مع التحقق من:
+
+1. إطلاق `AuthenticationException`.
+2. الحفاظ على message.
+3. الحفاظ على code عند الحاجة.
+4. الحفاظ على previous exception.
+5. عدم تحويل authentication failure الطبيعي `false` إلى exception.
+
+---
+
+# 48. Integration Tests
+
+تمت إضافة:
+
+```text
+tests/Integration/AuthenticationEventsTest.php
+```
+
+لاختبار التكامل الحقيقي نسبيًا مع Laravel Authentication.
 
 تم استخدام:
+
+```text
+Laravel Testbench
+Test User
+Test User Provider
+Laravel Event Dispatcher
+Laravel Authentication
+```
+
+---
+
+# 49. Integration Events Coverage
+
+الاختبارات الحالية تغطي:
+
+```text
+✓ Login
+✓ Failed
+✓ Logout
+✓ Attempting
+✓ Authenticated
+```
+
+ولا تكتفي الاختبارات الحالية بالتحقق من وجود event فقط في الأحداث الأساسية، بل تتحقق أيضًا من بعض بيانات event مثل:
+
+```text
+Guard
+User
+Credentials
+```
+
+بحسب نوع الحدث.
+
+---
+
+# 50. PHPUnit Configuration
+
+تم تحديث:
+
+```text
+phpunit.xml
+```
+
+لإضافة Integration Test Suite:
+
+```xml
+<testsuite name="Integration">
+    <directory>tests/Integration</directory>
+</testsuite>
+```
+
+وبذلك أصبح PHPUnit يكتشف Integration Tests تلقائيًا عند تنفيذ:
+
+```bash
+vendor/bin/phpunit
+```
+
+---
+
+# 51. Current Test Structure
+
+البنية الحالية:
+
+```text
+tests/
+├── Unit/
+│   ├── AuthGuardTest.php
+│   ├── AuthManagerContractTest.php
+│   ├── AuthManagerTest.php
+│   └── CoreAuthServiceProviderTest.php
+│
+└── Integration/
+    └── AuthenticationEventsTest.php
+```
+
+---
+
+# 52. Mocking Strategy
+
+يتم استخدام:
 
 ```text
 Mockery
 ```
 
-لعزل Authentication dependencies أثناء Unit Testing.
-
-يتم Mock للـ Laravel Guard وAuthFactory بدل الاعتماد على Authentication حقيقي.
+لعزل Laravel dependencies في Unit Tests.
 
 مثال:
 
@@ -1722,28 +1612,13 @@ $guard
     ->andReturn(true);
 ```
 
-كما تم اختبار credentials مختلفة:
-
-```php
-$guard
-    ->shouldReceive('attempt')
-    ->once()
-    ->with([
-        'username' => 'ahmed',
-        'password' => 'correct-password',
-    ])
-    ->andReturn(true);
-```
-
-وهذا يثبت أن `AuthManager` لا يفرض استخدام email.
+وهذا يثبت أن `AuthManager` يمرر credentials كما هي.
 
 ---
 
-# Authentication Exception Mocking
+# 53. Exception Mocking
 
-يتم استخدام Mockery لمحاكاة حدوث exception من Laravel Guard.
-
-مثال:
+يمكن محاكاة unexpected exception:
 
 ```php
 $guard
@@ -1757,13 +1632,13 @@ $guard
     );
 ```
 
-ثم يتم التحقق من أن الطبقة تقوم بتحويله إلى:
+ثم يتم التحقق من:
 
 ```php
 AuthenticationException
 ```
 
-مع الحفاظ على:
+ومن:
 
 ```php
 $exception->getPrevious()
@@ -1771,333 +1646,190 @@ $exception->getPrevious()
 
 ---
 
-# Authenticated User Testing
+# 54. Laravel Testbench
 
-يتم استخدام:
+يتم استخدام Testbench لتوفير Laravel application environment مناسب لاختبار الحزمة.
 
-```php
-Mockery::mock(Authenticatable::class)
-```
-
-عند اختبار وجود مستخدم authenticated.
-
-وهذا أفضل من استخدام Model حقيقي أو `stdClass` في Unit Tests، لأنه يختبر الـ Contract مباشرة.
-
-مثال:
-
-```php
-$user = Mockery::mock(Authenticatable::class);
-```
-
-ثم يتم إرجاعه من Guard:
-
-```php
-$guard
-    ->shouldReceive('user')
-    ->once()
-    ->andReturn($user);
-```
-
-كما يتم اختبار حالة عدم وجود مستخدم:
-
-```php
-$guard
-    ->shouldReceive('user')
-    ->once()
-    ->andReturn(null);
-```
-
-وبذلك يتم اختبار الحالتين:
+يستخدم في:
 
 ```text
-Authenticatable
-null
+Service Provider Testing
+Container Testing
+Integration Testing
+Laravel Authentication Integration
 ```
 
----
-
-# Laravel Testbench
-
-تم استخدام Laravel Testbench لتوفير بيئة اختبار مناسبة لحزمة Laravel.
-
-يستخدم Testbench لاختبار:
-
-* Service Provider
-* Laravel Container
-* Package integration
-* Dependency Injection
-* Laravel services
-
-مع الحفاظ على عزل Unit Tests قدر الإمكان.
+وهذا يسمح باختبار الحزمة ضمن بيئة Laravel قريبة من الاستخدام الفعلي.
 
 ---
 
-# Dependencies
+# 55. Code Documentation
 
-تعتمد الحزمة على Laravel Contracts وLaravel Framework وفق إعدادات `composer.json` الحالية.
+تمت إضافة PHPDoc إلى الدوال الأساسية.
 
-تعتمد بيئة التطوير والاختبارات على:
+يشمل ذلك:
 
-* Laravel Framework
-* PHPUnit
-* Laravel Testbench
-* Mockery
+```text
+__construct()
+login()
+logout()
+check()
+user()
+guard()
+```
 
-يجب اعتبار `composer.json` المصدر النهائي لقائمة dependencies والإصدارات.
+ويتم توضيح:
+
+```php
+@param array<string, mixed> $credentials
+```
+
+و:
+
+```php
+@return Authenticatable|null
+```
+
+و:
+
+```php
+@throws AuthenticationException
+```
+
+عند الحاجة.
 
 ---
 
-# Important Design Decisions
+# 56. Important Design Decisions
 
-## 1. استخدام Laravel Contracts
+## 56.1 Laravel Contracts
 
-تعتمد الحزمة على Contracts بدل الارتباط المباشر بتنفيذ محدد عندما يكون ذلك مناسبًا للتصميم.
+تم الاعتماد على Contracts بدل implementations مباشرة عندما يكون ذلك مناسبًا.
 
-من أهم dependencies المستخدمة:
+من أهمها:
 
 ```php
 Illuminate\Contracts\Auth\Factory
-```
-
-و:
-
-```php
 Illuminate\Contracts\Auth\Guard
-```
-
-و:
-
-```php
 Illuminate\Contracts\Auth\Authenticatable
+Illuminate\Contracts\Auth\UserProvider
 ```
 
 ---
 
-## 2. فصل Contract عن Implementation
+## 56.2 Contract / Implementation Separation
 
-تم فصل:
+تم الفصل بين:
 
 ```text
 AuthManagerInterface
-```
-
-عن:
-
-```text
 AuthManager
 ```
 
-كما تم فصل:
-
-```text
-GuardInterface
-```
-
-عن:
-
-```text
-AuthGuard
-```
-
-وهذا يسمح بتغيير implementation مستقبلًا دون تغيير الطبقات التي تعتمد على Contracts.
-
----
-
-## 3. Generalized Credentials
-
-لا يفرض `AuthManager` استخدام:
-
-```text
-email
-```
-
-أو:
-
-```text
-username
-```
-
-بل يستقبل credentials عامة:
-
-```php
-[
-    'identifier' => '...',
-    'password' => '...',
-]
-```
-
-بحسب ما يدعمه Guard والتطبيق.
-
-يمكن أن تكون credentials باستخدام:
-
-```text
-email
-username
-phone
-employee_id
-custom identifier
-```
-
-ولا تقوم الحزمة بتحديد أي منها كخيار إجباري.
-
----
-
-## 4. Guard Abstraction
-
-تمت إضافة:
+وبين:
 
 ```text
 GuardInterface
 AuthGuard
 ```
 
-لتوفير abstraction خاص بالحزمة عند التعامل مع Guard محدد.
-
-ويتم الوصول إلى Guard من خلال:
-
-```php
-$authManager->guard('api');
-```
-
-ثم يعاد:
-
-```php
-GuardInterface
-```
-
-بدل Laravel Guard مباشرة.
+وهذا يسمح بتغيير implementation مستقبلًا دون تغيير application code الذي يعتمد على Contracts.
 
 ---
 
-## 5. Typed Authenticated User
+## 56.3 Generalized Credentials
+
+لا يتم فرض:
+
+```text
+email
+```
+
+ولا:
+
+```text
+username
+```
+
+بل:
+
+```php
+array<string, mixed>
+```
+
+بحسب احتياجات التطبيق.
+
+---
+
+## 56.4 Guard Abstraction
+
+لا يتم إرجاع Laravel Guard مباشرة إلى التطبيق.
+
+بدلًا من ذلك:
+
+```text
+Laravel Guard
+      │
+      ▼
+AuthGuard
+      │
+      ▼
+GuardInterface
+```
+
+---
+
+## 56.5 Typed User
 
 تم استخدام:
-
-```php
-Illuminate\Contracts\Auth\Authenticatable
-```
-
-بدل استخدام:
-
-```php
-mixed
-```
-
-لتمثيل المستخدم authenticated.
-
-ويكون النوع:
 
 ```php
 ?Authenticatable
 ```
 
-لأن حالة Authentication قد تكون:
+بدل:
 
-```text
-Authenticated user → Authenticatable
-No authenticated user → null
+```php
+mixed
 ```
 
-هذا يوفر Contract واضحًا ويحسن:
-
-* Type Safety
-* Static Analysis
-* IDE Support
-* Maintainability
-* Extensibility
+لتوفير type واضح.
 
 ---
 
-## 6. عدم فرض User Model
+## 56.6 User Model Independence
 
-الحزمة لا تفرض:
+لا تعتمد الحزمة على:
 
 ```text
 App\Models\User
 ```
 
-ولا أي Model محدد.
-
-بل تعتمد على:
-
-```php
-Illuminate\Contracts\Auth\Authenticatable
-```
-
-وهذا يسمح للتطبيق باستخدام أي User implementation متوافقة مع Laravel Authentication.
+ولا على أي Model خاص بتطبيق معين.
 
 ---
 
-## 7. Singleton Binding
+## 56.7 Exception Boundary
 
-تم استخدام:
+تم إنشاء:
 
-```php
-$this->app->singleton()
-```
-
-لإدارة `AuthManager` كخدمة مشتركة داخل Laravel Application Container.
-
----
-
-## 8. Dependency Injection
-
-يتم حقن dependencies بدل إنشائها داخل الخدمات.
-
-هذا يحسن:
-
-* Testability
-* Maintainability
-* Loose Coupling
-* Extensibility
-
----
-
-## 9. Responsibility Separation
-
-تلتزم الحزمة بالفصل بين مسؤوليات Authentication المختلفة.
-
-`AuthManager` مسؤول عن توفير API موحد.
-
-`AuthGuard` مسؤول عن Adapter بين package contract وLaravel Guard.
-
-Laravel Guard مسؤول عن تنفيذ Authentication.
-
-والتطبيق مسؤول عن تحديد credentials المناسبة.
-
-`AuthenticationException` مسؤول عن تقديم exception موحد على مستوى الحزمة عند حدوث unexpected authentication errors.
-
----
-
-## 10. Exception Normalization
-
-يتم تحويل الاستثناءات غير المتوقعة أثناء Authentication إلى:
-
-```php
+```text
 AuthenticationException
 ```
 
-بدل تمرير كل أنواع الاستثناءات الداخلية مباشرة إلى التطبيق.
-
-هذا يوفر boundary واضحًا بين:
-
-```text
-Laravel / Infrastructure
-```
-
-و:
-
-```text
-Application
-```
-
-مع الحفاظ على الاستثناء الأصلي كـ previous exception.
+كحد فاصل بين infrastructure وapplication.
 
 ---
 
-## 11. Normal Failure vs Exceptional Failure
+## 56.8 Previous Exception Preservation
 
-يجب الحفاظ على الفرق بين:
+يتم الاحتفاظ بالـ original exception حتى لا تضيع معلومات debugging.
+
+---
+
+## 56.9 Normal Failure vs Exceptional Failure
+
+السلوك المعتمد:
 
 ```text
 Invalid credentials
@@ -2105,43 +1837,52 @@ Invalid credentials
 false
 ```
 
-وبين:
+بينما:
 
 ```text
-Unexpected authentication error
+Unexpected error
         ↓
 AuthenticationException
 ```
 
-هذا القرار يحافظ على semantics واضحة لعملية `login()`.
+---
+
+## 56.10 Laravel Events
+
+تعتمد الحزمة حاليًا على Laravel Authentication Events الموجودة أصلًا.
+
+لا يتم إنشاء custom authentication events داخل الحزمة إلا عند وجود حاجة معمارية واضحة.
 
 ---
 
-# Current Limitations
+# 57. Current Limitations
 
-تم الانتهاء من الأساس الحالي لـ Authentication Manager وGeneralized Login وGuard abstraction وTyped Authenticated User Support وAuthentication Exception Integration، ولكن بعض الوظائف المتقدمة ما زالت خارج نطاق هذه المرحلة.
+الميزات التالية لم يتم تنفيذها بعد:
 
-حاليًا لا توجد:
+```text
+Custom Authentication Events
+Token Authentication
+Custom Guards
+Advanced Multi-Guard Management
+Password Management
+Password Reset Workflow
+User Repository
+User Abstraction
+Advanced Authentication Failure Policies
+Advanced Authentication Exception Hierarchy
+Authentication Error Codes
+Authentication Error Categories
+Authentication Logging Abstraction
+Rate Limiting
+Authentication Throttling
+Remember Me Abstraction
+```
 
-* Events مخصصة للمصادقة
-* Token Authentication كامل داخل الحزمة
-* Guards مخصصة خاصة بالحزمة
-* نظام متقدم لإدارة عدة Guards
-* سياسات متقدمة لمعالجة Authentication failures
-* User abstraction خاصة بالحزمة
-* User Repository abstraction
-* عمليات CRUD أو إدارة متقدمة للمستخدمين
-* Password management abstraction
-* Password reset workflow داخل الحزمة
-* Exception hierarchy متقدمة لأنواع Authentication المختلفة
-* Error codes أو error categories مخصصة لـ AuthenticationException
-* Logging abstraction مخصصة لأحداث Authentication
-
-هذه الوظائف يجب تصميمها واختبارها بشكل مستقل قبل تنفيذها.
+هذه الميزات يجب تصميم كل منها بشكل مستقل قبل التنفيذ.
 
 ---
 
-# Completed Features
+# 58. Completed Features
 
 ## Authentication Manager
 
@@ -2158,9 +1899,10 @@ AuthenticationException
 ```text
 ✓ Generalized login() API
 ✓ Credentials array
-✓ Email-compatible credentials
-✓ Username-compatible credentials
-✓ Phone-compatible credentials
+✓ Email credentials
+✓ Username credentials
+✓ Phone credentials
+✓ Employee ID credentials
 ✓ Custom identifier support
 ✓ No forced email identifier
 ✓ No forced username identifier
@@ -2171,67 +1913,67 @@ AuthenticationException
 ```text
 ✓ GuardInterface
 ✓ AuthGuard
-✓ Named Guard support
+✓ Named Guard Support
 ✓ Guard abstraction
-✓ AuthGuard tests
 ✓ AuthManager Guard tests
+✓ AuthGuard tests
 ```
 
 ## Authenticated User Support
 
 ```text
 ✓ Authenticatable Contract
-✓ Typed user() return type
-✓ Authenticatable|null support
+✓ Typed user()
+✓ Authenticatable|null
 ✓ Authenticated user tests
 ✓ Unauthenticated user tests
 ```
 
-## Authentication Exception Integration
+## Authentication Exception
 
 ```text
 ✓ AuthenticationException
 ✓ AuthManager exception handling
 ✓ AuthGuard exception handling
-✓ Unexpected Throwable normalization
+✓ Throwable normalization
 ✓ Previous exception preservation
-✓ Authentication exception tests
+✓ Exception tests
 ✓ Normal authentication failure remains false
 ```
 
-## Service Container
+## Authentication Events Integration
 
 ```text
-✓ AuthManagerInterface binding
-✓ AuthManager implementation binding
-✓ Singleton registration
-✓ Service Provider tests
+✓ Laravel Attempting Event integration test
+✓ Laravel Failed Event integration test
+✓ Laravel Authenticated Event integration test
+✓ Laravel Login Event integration test
+✓ Laravel Logout Event integration test
+✓ Event guard assertions
+✓ Event user assertions
+✓ Failed credentials assertions
 ```
 
-## Testing
+## Testing Infrastructure
 
 ```text
 ✓ PHPUnit
 ✓ Laravel Testbench
 ✓ Mockery
-✓ AuthManager tests
-✓ AuthGuard tests
-✓ Contract tests
-✓ Service Provider tests
-✓ User state tests
-✓ Authentication exception tests
-✓ Previous exception tests
+✓ Unit Tests
+✓ Integration Tests
+✓ Integration Test Suite
 ```
 
 ## Documentation
 
 ```text
-✓ AuthManager documentation
+✓ Authentication Manager documentation
 ✓ Generalized Login documentation
 ✓ Guard Support documentation
-✓ Authenticated User documentation
+✓ Typed User documentation
 ✓ Authentication Exception documentation
-✓ Exception normalization documentation
+✓ Authentication Events documentation
 ✓ Architecture documentation
 ✓ Testing documentation
 ✓ Service Container documentation
@@ -2239,48 +1981,126 @@ AuthenticationException
 
 ---
 
-# Current Status
+# 59. Current Status
 
-المرحلة الحالية من `Authentication Manager` مكتملة من ناحية الكود والاختبارات ضمن النطاق الحالي.
+الأساس الحالي لـ Authentication Manager مكتمل ضمن النطاق الحالي.
 
 الحالة:
 
 ```text
-AuthManagerInterface       ✓
-AuthManager                ✓
-GuardInterface             ✓
-AuthGuard                  ✓
-AuthenticationException    ✓
-Service Container Binding  ✓
-Singleton Binding          ✓
-Dependency Injection       ✓
-Generalized Login API      ✓
-Named Guard Support        ✓
-Typed User Contract        ✓
-Authenticatable|null       ✓
-Exception Normalization    ✓
-Previous Exception         ✓
-Laravel Testbench          ✓
-Unit Tests                 ✓
-PHPDoc                     ✓
-Documentation              ✓
+AuthManagerInterface             ✓
+AuthManager                      ✓
+GuardInterface                   ✓
+AuthGuard                        ✓
+AuthenticationException          ✓
+Service Container Binding        ✓
+Singleton Binding                ✓
+Dependency Injection             ✓
+Generalized Login API            ✓
+Named Guard Support              ✓
+Typed User Contract              ✓
+Authenticatable|null              ✓
+Exception Normalization           ✓
+Previous Exception               ✓
+Laravel Testbench                 ✓
+Unit Tests                        ✓
+Integration Tests                 ✓
+Authentication Events Coverage    ✓
+PHPDoc                            ✓
+Documentation                     ✓
 ```
 
-نتيجة الاختبارات الأخيرة:
+---
+
+# 60. Current Test Result
+
+آخر تشغيل كامل لـ PHPUnit:
+
+```bash
+vendor/bin/phpunit
+```
+
+النتيجة:
 
 ```text
-29 tests
-34 assertions
+34 tests
+50 assertions
+OK
+```
+
+الحالة:
+
+```text
+✓ Tests passing
+✓ Assertions passing
+✓ No failures
+✓ No errors
+✓ No risky tests
+```
+
+كما تم تشغيل Integration Tests بشكل مستقل:
+
+```bash
+vendor/bin/phpunit tests/Integration/AuthenticationEventsTest.php
+```
+
+والنتيجة:
+
+```text
+5 tests
+16 assertions
 OK
 ```
 
 ---
 
-# Git Development Workflow
+# 61. Verification
+
+قبل Commit أو Pull Request يجب تنفيذ:
+
+```bash
+git diff --check
+```
+
+ثم:
+
+```bash
+vendor/bin/phpunit
+```
+
+ويجب أن تكون النتيجة:
+
+```text
+OK
+```
+
+بعد ذلك:
+
+```bash
+git status
+```
+
+ويجب التأكد من عدم وجود تغييرات غير مقصودة.
+
+لمراجعة staged changes:
+
+```bash
+git diff --cached
+```
+
+ولفحص whitespace:
+
+```bash
+git diff --cached --check
+```
+
+---
+
+# 62. Git Development Workflow
 
 تم تقسيم التطوير إلى Feature Branches مستقلة.
 
-النمط المستخدم:
+النمط:
 
 ```text
 develop
@@ -2291,13 +2111,24 @@ develop
     │
     ├── feature/auth-manager-user
     │
-    └── feature/authentication-exception-integration
+    ├── feature/authentication-exception-integration
+    │
+    └── feature/authentication-events
 ```
 
 بعد اكتمال Feature:
 
 ```text
 Feature Branch
+      │
+      ▼
+Tests
+      │
+      ▼
+Documentation
+      │
+      ▼
+Git Review
       │
       ▼
 Commit
@@ -2312,151 +2143,49 @@ Pull Request
 develop
 ```
 
-بعد دمج Feature والتأكد من استقرارها يمكن حذف Feature Branch المنتهي.
-
-يجب عدم الاعتماد على قائمة Branches ثابتة داخل التوثيق كمصدر للحالة الحالية؛ يتم استخدام Git نفسه لمعرفة الفروع الموجودة.
+بعد الدمج والتأكد من استقرار `develop` يمكن حذف Feature Branch المنتهي.
 
 ---
 
-# Git History
+# 63. Current Git Feature
 
-تم تقسيم العمل إلى Features وCommits صغيرة لتسهيل:
-
-* مراجعة التغييرات
-* تتبع التطور
-* اكتشاف المشاكل
-* مراجعة Pull Requests
-* دمج الميزات بشكل مستقل
-
-تم تنفيذ مراحل مثل:
+الميزة الحالية التي تم تنفيذها هي:
 
 ```text
-Authentication Manager
-Generalized Login
-Guard Support
-Authenticated User Support
-Authentication Exception Integration
+feature/authentication-events
 ```
 
-ولمراجعة التاريخ الفعلي للمشروع يمكن استخدام:
-
-```bash
-git log --oneline
-```
-
----
-
-# Verification
-
-قبل اعتبار المرحلة مستقرة يجب تشغيل:
-
-```bash
-git diff --check
-```
-
-ثم:
-
-```bash
-vendor/bin/phpunit
-```
-
-ويجب أن تكون جميع الاختبارات ناجحة.
-
-الحالة الحالية:
+وقد تم إنشاء Commit لها:
 
 ```text
-29 tests
-34 assertions
-OK
+1471ac7
 ```
 
-كما يمكن التحقق من حالة Git باستخدام:
+Commit message:
 
-```bash
-git status
+```text
+test: add authentication events integration coverage
 ```
 
-ويجب التأكد من عدم وجود تغييرات غير مقصودة قبل تنفيذ Commit أو Pull Request.
+يشمل الـ commit:
 
-ولمراجعة التغييرات الموجودة في staging يمكن استخدام:
-
-```bash
-git diff --cached
+```text
+phpunit.xml
+tests/Integration/AuthenticationEventsTest.php
 ```
 
-ولفحص whitespace داخل التغييرات staged:
+ويضيف:
 
-```bash
-git diff --cached --check
+```text
+Integration Test Suite
+Authentication Events Integration Coverage
 ```
 
 ---
 
-# Current Development Phase
+# 64. Development Methodology
 
-العمل الحالي يتم على:
-
-```text
-feature/authentication-exception-integration
-```
-
-تم في هذه المرحلة دمج Authentication Exception handling داخل طبقات Authentication الحالية.
-
-تم تحديث:
-
-```text
-AuthManagerInterface
-AuthManager
-AuthGuard
-AuthGuardTest
-AuthManagerTest
-```
-
-كما تم إضافة:
-
-```text
-AuthenticationException
-```
-
-وأصبح `login()` يدعم السلوك التالي:
-
-```text
-Authentication succeeds
-        ↓
-true
-```
-
-أو:
-
-```text
-Authentication fails normally
-        ↓
-false
-```
-
-أو:
-
-```text
-Unexpected exception
-        ↓
-AuthenticationException
-        ↓
-previous exception preserved
-```
-
-الاختبارات الحالية ناجحة:
-
-```text
-29 tests
-34 assertions
-OK
-```
-
----
-
-# Development Methodology
-
-سيتم تطوير المراحل القادمة وفق المنهجية التالية:
+سيتم تطوير المراحل القادمة وفق:
 
 ```text
 Architecture
@@ -2471,7 +2200,7 @@ Implementation
      ↓
 Documentation
      ↓
-Static / Quality Checks
+Quality Checks
      ↓
 PHPUnit
      ↓
@@ -2484,35 +2213,40 @@ Pull Request
 Merge
 ```
 
-ويجب عدم إضافة abstraction أو feature جديدة بدون تحديد مسؤوليتها وعلاقتها بالمعمارية الحالية.
+ولا تتم إضافة abstraction جديد إلا بعد تحديد:
+
+```text
+Purpose
+Responsibility
+Boundary
+Dependencies
+Testing Strategy
+Extension Strategy
+```
 
 ---
 
-# Development Principles
+# 65. Development Principles
 
-تعتمد الحزمة على المبادئ التالية:
+## 65.1 Contract First
 
-## 1. Contract First
+تعريف Contract قبل Implementation عندما يكون ذلك مناسبًا.
 
-يتم تعريف Contract قبل Implementation عندما يكون ذلك مناسبًا للتصميم.
+## 65.2 Test First / Test Driven Where Practical
 
-## 2. Test First / Test Driven Where Practical
+تحديد behavior واختباره قبل أو بالتزامن مع implementation.
 
-يتم تحديد السلوك المتوقع واختباره قبل أو بالتزامن مع تنفيذ الميزة.
+## 65.3 Loose Coupling
 
-## 3. Loose Coupling
+تقليل الارتباط المباشر بين application وLaravel implementations.
 
-تقليل الاعتماد المباشر على implementations قدر الإمكان.
+## 65.4 Dependency Injection
 
-## 4. Dependency Injection
+استخدام Constructor Injection وLaravel Container.
 
-استخدام Laravel Container وConstructor Injection لإدارة dependencies.
+## 65.5 Type Safety
 
-## 5. Type Safety
-
-استخدام أنواع واضحة بدل `mixed` عندما يكون النوع معروفًا.
-
-مثال:
+استخدام الأنواع الواضحة:
 
 ```php
 ?Authenticatable
@@ -2524,157 +2258,309 @@ Merge
 mixed
 ```
 
-## 6. Small Features
+عندما يكون النوع معروفًا.
 
-تقسيم العمل إلى Features صغيرة يمكن اختبارها ومراجعتها ودمجها بشكل مستقل.
+## 65.6 Small Features
 
-## 7. Backward Compatibility
+تقسيم التطوير إلى Features صغيرة قابلة للاختبار والمراجعة والدمج.
 
-يجب مراعاة عدم كسر API الحالي عند إضافة Features جديدة، إلا عند وجود قرار معماري واضح ومبرر.
+## 65.7 Backward Compatibility
 
-## 8. Responsibility Separation
+عدم كسر API الحالي إلا بقرار معماري واضح.
 
-كل طبقة يجب أن تمتلك مسؤولية واضحة.
+## 65.8 Responsibility Separation
 
-## 9. Testability
+كل class أو abstraction يجب أن يمتلك مسؤولية محددة.
 
-يجب تصميم المكونات بحيث يمكن اختبارها دون الاعتماد غير الضروري على Database أو Authentication environment حقيقي.
+## 65.9 Testability
 
-## 10. Documentation
+تصميم المكونات بحيث يمكن اختبارها مع أقل اعتماد ممكن على environment حقيقي.
 
-كل Feature مهمة يجب أن يكون لها توثيق يعكس السلوك الفعلي للكود.
+## 65.10 Documentation
 
-## 11. Stable Develop
+يجب أن يعكس التوثيق behavior الفعلي للكود.
 
-يجب أن يبقى `develop` في حالة قابلة للاختبار بعد دمج الميزات.
+## 65.11 Stable Develop
 
-## 12. Exception Boundary
+يجب أن يبقى:
 
-يجب أن توفر الحزمة exception boundary واضحة بين Laravel/infrastructure وبين application، مع الحفاظ على السبب الأصلي للخطأ عند الحاجة إلى debugging.
+```text
+develop
+```
+
+قابلًا للاختبار بعد دمج الميزات.
+
+## 65.12 Exception Boundary
+
+يجب الحفاظ على boundary واضحة بين:
+
+```text
+Laravel / Infrastructure
+```
+
+و:
+
+```text
+Application
+```
+
+## 65.13 Integration Testing
+
+يجب استخدام Integration Tests عندما يكون behavior متعلقًا بتكامل عدة مكونات Laravel وليس class واحدًا فقط.
 
 ---
 
-# Summary
+# 66. Authentication Flow Summary
 
-تم بناء أساس قابل للتوسع لطبقة Authentication داخل `core-auth`.
-
-أصبح لدينا:
+## Successful Login
 
 ```text
-                    Application
-                         │
-                         ▼
-               AuthManagerInterface
-                         │
-                         ▼
-                    AuthManager
-                    /         \
-                   /           \
-                  ▼             ▼
-          Default Guard     Named Guard
-                │                │
-                ▼                ▼
-        Laravel Guard       AuthGuard
-                │                │
-                │                ▼
-                │         GuardInterface
-                │
-                ▼
-        AuthenticationException
-```
-
-تم تعميم `login()` بحيث لا يفرض نوعًا محددًا من الـ identifier.
-
-يمكن للتطبيق استخدام:
-
-```text
-email
-username
-phone
-employee_id
-custom identifier
-```
-
-بحسب ما يدعمه Laravel Guard والتطبيق.
-
-كما تمت إضافة:
-
-```text
-GuardInterface
-AuthGuard
-Named Guard Support
-```
-
-لتوفير abstraction خاص بالحزمة عند التعامل مع Guards.
-
-كما تم تحسين typed authenticated user support باستخدام:
-
-```php
-Illuminate\Contracts\Auth\Authenticatable
-```
-
-بحيث أصبحت واجهة المستخدم:
-
-```php
-public function user(): ?Authenticatable;
-```
-
-وهذا يعني:
-
-```text
-Authenticated user → Authenticatable
-No authenticated user → null
-```
-
-كما تمت إضافة:
-
-```text
-AuthenticationException
-```
-
-لتوحيد التعامل مع unexpected authentication errors.
-
-أصبح behavior الخاص بـ `login()` واضحًا:
-
-```text
-Valid authentication
-        ↓
+Application
+     │
+     ▼
+AuthManagerInterface
+     │
+     ▼
+AuthManager
+     │
+     ▼
+AuthFactory
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+attempt()
+     │
+     ├── Attempting
+     │
+     ├── Authenticated
+     │
+     └── Login
+     │
+     ▼
 true
 ```
 
+## Failed Login
+
 ```text
-Invalid credentials
-        ↓
+Application
+     │
+     ▼
+AuthManager
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+attempt()
+     │
+     ├── Attempting
+     │
+     └── Failed
+     │
+     ▼
 false
 ```
 
+## Unexpected Login Error
+
 ```text
-Unexpected authentication error
-        ↓
+Application
+     │
+     ▼
+AuthManager
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+attempt()
+     │
+     ▼
+Throwable
+     │
+     ▼
 AuthenticationException
-        ↓
-Original exception preserved
+     │
+     ▼
+Application
 ```
 
-وهذا يسمح للتطبيق بالتمييز بوضوح بين فشل Authentication العادي وبين الأخطاء غير المتوقعة.
-
-تم اختبار المكونات الأساسية باستخدام:
+## Logout
 
 ```text
-PHPUnit
-Laravel Testbench
-Mockery
+Application
+     │
+     ▼
+AuthManager
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+logout()
+     │
+     ▼
+Logout Event
 ```
 
-والنتيجة الحالية:
+## Named Guard
 
 ```text
-29 tests
-34 assertions
+Application
+     │
+     ▼
+AuthManager
+     │
+     ▼
+guard('api')
+     │
+     ▼
+Laravel Guard
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+GuardInterface
+```
+
+---
+
+# 67. Final Architecture
+
+التصميم الحالي يمكن تلخيصه كالتالي:
+
+```text
+                         Application
+                              │
+                              ▼
+                    AuthManagerInterface
+                              │
+                              ▼
+                         AuthManager
+                       /            \
+                      /              \
+                     ▼                ▼
+             Default Guard       Named Guard
+                     │                │
+                     ▼                ▼
+             Laravel Guard        AuthGuard
+                                      │
+                                      ▼
+                                GuardInterface
+
+                         Authentication Errors
+                                  │
+                                  ▼
+                         AuthenticationException
+
+                         Laravel Authentication
+                                  │
+             ┌────────────────────┼────────────────────┐
+             ▼                    ▼                    ▼
+        Attempting             Failed             Authenticated
+                                                      │
+                                                      ▼
+                                                   Login
+
+                              Logout
+                                │
+                                ▼
+                             Logout Event
+```
+
+---
+
+# 68. Summary
+
+تم بناء أساس قوي وقابل للتوسع لطبقة Authentication داخل `core-auth`.
+
+المكونات الأساسية الحالية:
+
+```text
+AuthManagerInterface
+AuthManager
+GuardInterface
+AuthGuard
+AuthenticationException
+CoreAuthServiceProvider
+```
+
+أصبح التطبيق قادرًا على استخدام:
+
+```php
+$authManager->login($credentials);
+```
+
+دون فرض نوع identifier معين.
+
+كما أصبح بالإمكان:
+
+```php
+$authManager->guard('api');
+```
+
+للحصول على Guard abstraction مستقل.
+
+ويمكن الحصول على المستخدم authenticated باستخدام:
+
+```php
+$user = $authManager->user();
+```
+
+مع type واضح:
+
+```php
+?Authenticatable
+```
+
+كما أصبحت أخطاء Authentication غير المتوقعة تمر عبر:
+
+```text
+AuthenticationException
+```
+
+مع الحفاظ على:
+
+```php
+$exception->getPrevious()
+```
+
+لأغراض debugging.
+
+تم كذلك اختبار تكامل Authentication lifecycle مع Laravel من خلال:
+
+```text
+Attempting
+Failed
+Authenticated
+Login
+Logout
+```
+
+باستخدام Integration Tests وLaravel Testbench.
+
+الحالة النهائية الحالية:
+
+```text
+34 tests
+50 assertions
 OK
 ```
 
-أصبحت المرحلة الحالية أساسًا مناسبًا لبناء Features المصادقة المتقدمة مستقبلًا مع الحفاظ على:
+وأصبح لدينا أساس معماري واضح يسمح بإضافة ميزات Authentication مستقبلية دون ربط الحزمة بشكل مباشر بـ:
+
+```text
+User Model
+Authentication Identifier
+Laravel Guard Implementation
+Authentication Infrastructure Exceptions
+```
+
+مع الحفاظ على:
 
 ```text
 Contract-based Design
@@ -2682,9 +2568,11 @@ Loose Coupling
 Dependency Injection
 Type Safety
 Testability
+Integration Testing
 Exception Boundary
 Laravel Compatibility
 Extensibility
+Maintainability
 ```
 
-ويجب أن تعتمد المراحل القادمة على التصميم الحالي بدل إضافة abstractions متداخلة أو فرض نوع محدد من User أو Authentication Identifier على التطبيق.
+ويجب أن تعتمد المراحل القادمة على هذه البنية بدل إضافة abstractions متداخلة أو مسؤوليات لا تنتمي إلى `AuthManager`.
