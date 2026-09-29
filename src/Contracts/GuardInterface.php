@@ -12,8 +12,12 @@ interface GuardInterface
      * Attempt to authenticate a user using the given credentials.
      *
      * @param array<string, mixed> $credentials
+     * @param bool $remember Whether the authenticated session should be remembered.
      */
-    public function login(array $credentials): bool;
+    public function login(
+        array $credentials,
+        bool $remember = false
+    ): bool;
 
     /**
      * Log out the currently authenticated user.

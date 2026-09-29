@@ -161,10 +161,32 @@ final class AuthenticationEventsTest extends TestCase
         $this->assertSame('web', $authenticatedEvent->guard);
         $this->assertInstanceOf(TestUser::class, $authenticatedEvent->user);
     }
+
+    public function test_remember_me_stores_remember_token(): void
+    {
+        $provider = new TestUserProvider();
+
+        $this->app['auth']->provider('test', function () use ($provider) {
+            return $provider;
+        });
+
+        $auth = $this->app->make(AuthManagerInterface::class);
+
+        $result = $auth->login([
+            'email' => 'user@example.com',
+            'password' => 'password',
+        ], true);
+
+        $this->assertTrue($result);
+        $this->assertNotNull($provider->getLastUser());
+        $this->assertNotNull($provider->getLastUser()?->getRememberToken());
+    }
 }
 
 final class TestUser implements Authenticatable
 {
+    private ?string $rememberToken = null;
+
     public function getAuthIdentifierName(): string
     {
         return 'id';
@@ -187,11 +209,12 @@ final class TestUser implements Authenticatable
 
     public function getRememberToken(): ?string
     {
-        return null;
+        return $this->rememberToken;
     }
 
     public function setRememberToken($value): void
     {
+        $this->rememberToken = $value;
     }
 
     public function getRememberTokenName(): string
@@ -202,6 +225,8 @@ final class TestUser implements Authenticatable
 
 final class TestUserProvider implements UserProvider
 {
+    private ?TestUser $lastUser = null;
+
     public function retrieveById($identifier): ?Authenticatable
     {
         return new TestUser();
@@ -212,8 +237,11 @@ final class TestUserProvider implements UserProvider
         return null;
     }
 
-    public function updateRememberToken(Authenticatable $user, $token): void
-    {
+    public function updateRememberToken(
+        Authenticatable $user,
+        $token
+    ): void {
+        $user->setRememberToken($token);
     }
 
     public function retrieveByCredentials(array $credentials): ?Authenticatable
@@ -222,11 +250,15 @@ final class TestUserProvider implements UserProvider
             return null;
         }
 
-        return new TestUser();
+        $this->lastUser = new TestUser();
+
+        return $this->lastUser;
     }
 
-    public function validateCredentials(Authenticatable $user, array $credentials): bool
-    {
+    public function validateCredentials(
+        Authenticatable $user,
+        array $credentials
+    ): bool {
         return ($credentials['password'] ?? null) === 'password';
     }
 
@@ -235,5 +267,10 @@ final class TestUserProvider implements UserProvider
         array $credentials,
         bool $force = false
     ): void {
+    }
+
+    public function getLastUser(): ?TestUser
+    {
+        return $this->lastUser;
     }
 }

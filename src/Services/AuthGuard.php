@@ -7,28 +7,38 @@ namespace AhmedSalahDev\CoreAuth\Services;
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
 use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Auth\Guard as LaravelGuard;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Throwable;
+
 final class AuthGuard implements GuardInterface
 {
     /**
      * Create a new authentication guard adapter.
      */
     public function __construct(
-        private readonly LaravelGuard $guard
+        private readonly StatefulGuard $guard
     ) {
     }
     /**
      * Attempt to authenticate a user using the given credentials.
      *
      * @param array<string, mixed> $credentials
+     * @param bool $remember Whether the authenticated session should be remembered.
+     *
+     * @return bool True when authentication succeeds, otherwise false.
      *
      * @throws AuthenticationException
      */
-    public function login(array $credentials): bool
+    public function login(
+        array $credentials,
+        bool $remember = false
+    ): bool
     {
         try {
-            return $this->guard->attempt($credentials);
+            return $this->guard->attempt(
+                $credentials,
+                $remember
+            );
         } catch (Throwable $exception) {
             throw new AuthenticationException(
                 $exception->getMessage(),
