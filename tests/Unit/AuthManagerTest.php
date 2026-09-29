@@ -10,11 +10,11 @@ use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use Illuminate\Contracts\Auth\Guard as LaravelGuard;
 
 final class AuthManagerTest extends TestCase
 {
@@ -29,9 +29,7 @@ final class AuthManagerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->auth = Mockery::mock(AuthFactory::class);
-
         $this->authManager = new AuthManager(
             $this->auth
         );
@@ -65,26 +63,49 @@ final class AuthManagerTest extends TestCase
     public function test_login_returns_true_when_credentials_are_valid(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('attempt')
             ->once()
-            ->with([
-                'email' => 'user@example.com',
-                'password' => 'correct-password',
-            ])
+            ->with(
+                [
+                    'email' => 'user@example.com',
+                    'password' => 'correct-password',
+                ],
+                false
+            )
             ->andReturn(true);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->assertTrue(
             $this->authManager->login([
                 'email' => 'user@example.com',
                 'password' => 'correct-password',
             ])
+        );
+    }
+    /**
+     * Verify that login passes the remember option to the authentication guard.
+     */
+    public function test_login_remembers_user_when_remember_is_enabled(): void
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+            'password' => 'correct-password',
+        ];
+        $guard = Mockery::mock();
+        $guard
+            ->shouldReceive('attempt')
+            ->once()
+            ->with($credentials, true)
+            ->andReturn(true);
+        $this->auth
+            ->shouldReceive('guard')
+            ->once()
+            ->andReturn($guard);
+        $this->assertTrue(
+            $this->authManager->login($credentials, true)
         );
     }
 
@@ -95,21 +116,21 @@ final class AuthManagerTest extends TestCase
     public function test_login_returns_false_when_credentials_are_invalid(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('attempt')
             ->once()
-            ->with([
-                'email' => 'user@example.com',
-                'password' => 'wrong-password',
-            ])
+            ->with(
+                [
+                    'email' => 'user@example.com',
+                    'password' => 'wrong-password',
+                ],
+                false
+            )
             ->andReturn(false);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->assertFalse(
             $this->authManager->login([
                 'email' => 'user@example.com',
@@ -124,25 +145,20 @@ final class AuthManagerTest extends TestCase
             'email' => 'user@example.com',
             'password' => 'correct-password',
         ];
-
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('attempt')
             ->once()
-            ->with($credentials)
+            ->with($credentials, false)
             ->andThrow(new RuntimeException('Unexpected authentication failure.'));
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->expectException(AuthenticationException::class);
-
         $this->expectExceptionMessage(
             'Unexpected authentication failure.'
         );
-
         $this->authManager->login($credentials);
     }
     /**
@@ -152,21 +168,21 @@ final class AuthManagerTest extends TestCase
     public function test_login_accepts_non_email_credentials(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('attempt')
             ->once()
-            ->with([
-                'username' => 'ahmed',
-                'password' => 'correct-password',
-            ])
+            ->with(
+                [
+                    'username' => 'ahmed',
+                    'password' => 'correct-password',
+                ],
+                false
+            )
             ->andReturn(true);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->assertTrue(
             $this->authManager->login([
                 'username' => 'ahmed',
@@ -181,17 +197,14 @@ final class AuthManagerTest extends TestCase
     public function test_check_returns_true_when_user_is_authenticated(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('check')
             ->once()
             ->andReturn(true);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->assertTrue(
             $this->authManager->check()
         );
@@ -203,17 +216,14 @@ final class AuthManagerTest extends TestCase
     public function test_check_returns_false_when_user_is_not_authenticated(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('check')
             ->once()
             ->andReturn(false);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->assertFalse(
             $this->authManager->check()
         );
@@ -225,17 +235,14 @@ final class AuthManagerTest extends TestCase
     public function test_user_returns_null_when_user_is_not_authenticated(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('user')
             ->once()
             ->andReturn(null);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->assertNull(
             $this->authManager->user()
         );
@@ -248,21 +255,16 @@ final class AuthManagerTest extends TestCase
     public function test_user_returns_authenticated_user(): void
     {
         $user = Mockery::mock(Authenticatable::class);
-
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('user')
             ->once()
             ->andReturn($user);
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $result = $this->authManager->user();
-
         $this->assertSame($user, $result);
     }
     /**
@@ -271,33 +273,26 @@ final class AuthManagerTest extends TestCase
     public function test_logout_calls_the_auth_guard(): void
     {
         $guard = Mockery::mock();
-
         $guard
             ->shouldReceive('logout')
             ->once();
-
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->andReturn($guard);
-
         $this->authManager->logout();
-
         $this->assertTrue(true);
     }
 
     public function test_guard_returns_auth_guard_for_the_given_name(): void
     {
-        $guard = Mockery::mock(LaravelGuard::class);
-
+        $guard = Mockery::mock(StatefulGuard::class);
         $this->auth
             ->shouldReceive('guard')
             ->once()
             ->with('api')
             ->andReturn($guard);
-
         $result = $this->authManager->guard('api');
-
         $this->assertInstanceOf(
             GuardInterface::class,
             $result

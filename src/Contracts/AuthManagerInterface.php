@@ -13,10 +13,14 @@ interface AuthManagerInterface
      * Attempt to authenticate a user using the default guard.
      *
      * @param array<string, mixed> $credentials
+     * @param bool $remember Whether the authenticated session should be remembered.
      *
      * @throws AuthenticationException
      */
-    public function login(array $credentials): bool;
+    public function login(
+        array $credentials,
+        bool $remember = false
+    ): bool;
 
     /**
      * Log out the currently authenticated user using the default guard.

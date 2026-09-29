@@ -25,15 +25,21 @@ final class AuthManager implements AuthManagerInterface
      * Attempt to authenticate a user using the given credentials.
      *
      * @param array<string, mixed> $credentials
+     * @param bool $remember Whether the authenticated session should be remembered.
      *
      * @return bool True when authentication succeeds, otherwise false.
+     *
+     * @throws AuthenticationException
      */
-    public function login(array $credentials): bool
+    public function login(
+        array $credentials,
+        bool $remember = false
+    ): bool
     {
         try {
             return $this->auth
                 ->guard()
-                ->attempt($credentials);
+                ->attempt($credentials, $remember);
         } catch (Throwable $exception) {
             throw new AuthenticationException(
                 $exception->getMessage(),

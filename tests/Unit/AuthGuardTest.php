@@ -8,7 +8,7 @@ use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
 use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use AhmedSalahDev\CoreAuth\Services\AuthGuard;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Auth\Guard as LaravelGuard;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
@@ -23,8 +23,7 @@ final class AuthGuardTest extends TestCase
     {
         parent::setUp();
 
-        $this->guard = Mockery::mock(LaravelGuard::class);
-
+        $this->guard = Mockery::mock(StatefulGuard::class);
         $this->authGuard = new AuthGuard(
             $this->guard
         );
@@ -55,11 +54,32 @@ final class AuthGuardTest extends TestCase
         $this->guard
             ->shouldReceive('attempt')
             ->once()
-            ->with($credentials)
+            ->with($credentials, false)
             ->andReturn(true);
 
         $this->assertTrue(
             $this->authGuard->login($credentials)
+        );
+    }
+
+    /**
+     * Verify that login passes the remember option to the authentication guard.
+     */
+    public function test_login_remembers_user_when_remember_is_enabled(): void
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+            'password' => 'correct-password',
+        ];
+
+        $this->guard
+            ->shouldReceive('attempt')
+            ->once()
+            ->with($credentials, true)
+            ->andReturn(true);
+
+        $this->assertTrue(
+            $this->authGuard->login($credentials, true)
         );
     }
 
@@ -69,13 +89,11 @@ final class AuthGuardTest extends TestCase
             'email' => 'user@example.com',
             'password' => 'wrong-password',
         ];
-
         $this->guard
             ->shouldReceive('attempt')
             ->once()
-            ->with($credentials)
+            ->with($credentials, false)
             ->andReturn(false);
-
         $this->assertFalse(
             $this->authGuard->login($credentials)
         );
@@ -86,9 +104,7 @@ final class AuthGuardTest extends TestCase
         $this->guard
             ->shouldReceive('logout')
             ->once();
-
         $this->authGuard->logout();
-
         $this->assertTrue(true);
     }
 
@@ -98,7 +114,6 @@ final class AuthGuardTest extends TestCase
             ->shouldReceive('check')
             ->once()
             ->andReturn(true);
-
         $this->assertTrue(
             $this->authGuard->check()
         );
@@ -110,7 +125,6 @@ final class AuthGuardTest extends TestCase
             ->shouldReceive('check')
             ->once()
             ->andReturn(false);
-
         $this->assertFalse(
             $this->authGuard->check()
         );
@@ -119,12 +133,10 @@ final class AuthGuardTest extends TestCase
     public function test_user_returns_authenticated_user(): void
     {
         $user = Mockery::mock(Authenticatable::class);
-
         $this->guard
             ->shouldReceive('user')
             ->once()
             ->andReturn($user);
-
         $this->assertSame(
             $user,
             $this->authGuard->user()
@@ -137,7 +149,6 @@ final class AuthGuardTest extends TestCase
             ->shouldReceive('user')
             ->once()
             ->andReturn(null);
-
         $this->assertNull(
             $this->authGuard->user()
         );
@@ -149,23 +160,19 @@ final class AuthGuardTest extends TestCase
             'email' => 'user@example.com',
             'password' => 'correct-password',
         ];
-
         $this->guard
             ->shouldReceive('attempt')
             ->once()
-            ->with($credentials)
+            ->with($credentials, false)
             ->andThrow(
                 new RuntimeException('Unexpected authentication failure.')
             );
-
         $this->expectException(
             AuthenticationException::class
         );
-
         $this->expectExceptionMessage(
             'Unexpected authentication failure.'
         );
-
         $this->authGuard->login($credentials);
     }
 
@@ -183,7 +190,7 @@ final class AuthGuardTest extends TestCase
         $this->guard
             ->shouldReceive('attempt')
             ->once()
-            ->with($credentials)
+            ->with($credentials, false)
             ->andThrow($originalException);
 
         try {
