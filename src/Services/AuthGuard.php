@@ -34,7 +34,9 @@ final class AuthGuard implements GuardInterface
         bool $remember = false
     ): bool
     {
+
         try {
+
             return $this->guard->attempt(
                 $credentials,
                 $remember

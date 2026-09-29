@@ -56,6 +56,7 @@ final class AuthGuardTest extends TestCase
             ->once()
             ->with($credentials, false)
             ->andReturn(true);
+
         $this->assertTrue(
             $this->authGuard->login($credentials)
         );
