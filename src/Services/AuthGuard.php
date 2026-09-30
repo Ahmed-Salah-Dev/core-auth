@@ -19,6 +19,7 @@ final class AuthGuard implements GuardInterface
         private readonly StatefulGuard $guard
     ) {
     }
+
     /**
      * Attempt to authenticate a user using the given credentials.
      *
@@ -34,9 +35,7 @@ final class AuthGuard implements GuardInterface
         bool $remember = false
     ): bool
     {
-
         try {
-
             return $this->guard->attempt(
                 $credentials,
                 $remember

@@ -13,6 +13,7 @@ use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+
 final class AuthGuardTest extends TestCase
 {
     private MockInterface $guard;

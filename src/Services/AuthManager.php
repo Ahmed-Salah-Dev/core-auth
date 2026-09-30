@@ -82,6 +82,10 @@ final class AuthManager implements AuthManagerInterface
             ->guard()
             ->user();
     }
+
+    /**
+     * Retrieve an authentication guard by name.
+     */
     public function guard(string $name): GuardInterface
     {
         return new AuthGuard(
