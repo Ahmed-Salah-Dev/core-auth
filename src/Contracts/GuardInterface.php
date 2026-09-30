@@ -32,7 +32,5 @@ interface GuardInterface
     /**
      * Retrieve the currently authenticated user.
      */
-//    public function user(): mixed;
     public function user(): ?Authenticatable;
-
 }

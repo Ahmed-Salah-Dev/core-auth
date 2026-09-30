@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
 use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
 use Illuminate\Contracts\Auth\PasswordBroker;
 use Illuminate\Contracts\Hashing\Hasher;
@@ -11,7 +12,6 @@ use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
 
 final class PasswordResetManagerTest extends TestCase
 {
@@ -74,21 +74,21 @@ final class PasswordResetManagerTest extends TestCase
      * does not successfully send the reset link.
      */
     public function test_send_reset_link_returns_false_when_unsuccessful(): void
-{
-    $credentials = [
-        'email' => 'unknown@example.com',
-    ];
+    {
+        $credentials = [
+            'email' => 'unknown@example.com',
+        ];
 
-    $this->broker
-        ->shouldReceive('sendResetLink')
-        ->once()
-        ->with($credentials)
-        ->andReturn('passwords.user');
+        $this->broker
+            ->shouldReceive('sendResetLink')
+            ->once()
+            ->with($credentials)
+            ->andReturn('passwords.user');
 
-    $this->assertFalse(
-        $this->passwordResetManager->sendResetLink($credentials)
-    );
-}
+        $this->assertFalse(
+            $this->passwordResetManager->sendResetLink($credentials)
+        );
+    }
 
     /**
      * Verify that reset successfully changes the user's password
@@ -159,115 +159,115 @@ final class PasswordResetManagerTest extends TestCase
      * does not successfully reset the password.
      */
     public function test_reset_returns_false_when_unsuccessful(): void
-{
-    $credentials = [
-        'email' => 'user@example.com',
-    ];
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+        ];
 
-    $token = 'invalid-reset-token';
-    $password = 'new-password';
+        $token = 'invalid-reset-token';
+        $password = 'new-password';
 
-    $this->broker
-        ->shouldReceive('reset')
-        ->once()
-        ->withArgs(function (
-            array $receivedCredentials,
-            callable $callback,
-            string $receivedToken
-        ) use (
-            $credentials,
-            $token
-        ): bool {
-            $this->assertSame($credentials, $receivedCredentials);
-            $this->assertSame($token, $receivedToken);
+        $this->broker
+            ->shouldReceive('reset')
+            ->once()
+            ->withArgs(function (
+                array $receivedCredentials,
+                callable $callback,
+                string $receivedToken
+            ) use (
+                $credentials,
+                $token
+            ): bool {
+                $this->assertSame($credentials, $receivedCredentials);
+                $this->assertSame($token, $receivedToken);
 
-            return true;
-        })
-        ->andReturn('passwords.token');
+                return true;
+            })
+            ->andReturn('passwords.token');
 
-    $this->assertFalse(
-        $this->passwordResetManager->reset(
-            $credentials,
-            $token,
-            $password
-        )
-    );
-}
+        $this->assertFalse(
+            $this->passwordResetManager->reset(
+                $credentials,
+                $token,
+                $password
+            )
+        );
+    }
 
     /**
      * Verify that exceptions thrown by the Password Broker are propagated
      * to the caller.
      */
     public function test_send_reset_link_propagates_broker_exception(): void
-{
-    $credentials = [
-        'email' => 'user@example.com',
-    ];
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+        ];
 
-    $exception = new RuntimeException(
-        'Unexpected password reset failure.'
-    );
+        $exception = new RuntimeException(
+            'Unexpected password reset failure.'
+        );
 
-    $this->broker
-        ->shouldReceive('sendResetLink')
-        ->once()
-        ->with($credentials)
-        ->andThrow($exception);
+        $this->broker
+            ->shouldReceive('sendResetLink')
+            ->once()
+            ->with($credentials)
+            ->andThrow($exception);
 
-    $this->expectException(RuntimeException::class);
-    $this->expectExceptionMessage(
-        'Unexpected password reset failure.'
-    );
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Unexpected password reset failure.'
+        );
 
-    $this->passwordResetManager->sendResetLink($credentials);
-}
+        $this->passwordResetManager->sendResetLink($credentials);
+    }
 
     /**
      * Verify that exceptions thrown by the Password Broker during reset
      * are propagated to the caller.
      */
     public function test_reset_propagates_broker_exception(): void
-{
-    $credentials = [
-        'email' => 'user@example.com',
-    ];
+    {
+        $credentials = [
+            'email' => 'user@example.com',
+        ];
 
-    $token = 'valid-reset-token';
-    $password = 'new-password';
+        $token = 'valid-reset-token';
+        $password = 'new-password';
 
-    $exception = new RuntimeException(
-        'Unexpected password reset failure.'
-    );
+        $exception = new RuntimeException(
+            'Unexpected password reset failure.'
+        );
 
-    $this->broker
-        ->shouldReceive('reset')
-        ->once()
-        ->withArgs(function (
-            array $receivedCredentials,
-            callable $callback,
-            string $receivedToken
-        ) use (
+        $this->broker
+            ->shouldReceive('reset')
+            ->once()
+            ->withArgs(function (
+                array $receivedCredentials,
+                callable $callback,
+                string $receivedToken
+            ) use (
+                $credentials,
+                $token
+            ): bool {
+                $this->assertSame($credentials, $receivedCredentials);
+                $this->assertSame($token, $receivedToken);
+
+                return true;
+            })
+            ->andThrow($exception);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Unexpected password reset failure.'
+        );
+
+        $this->passwordResetManager->reset(
             $credentials,
-            $token
-        ): bool {
-            $this->assertSame($credentials, $receivedCredentials);
-            $this->assertSame($token, $receivedToken);
-
-            return true;
-        })
-        ->andThrow($exception);
-
-    $this->expectException(RuntimeException::class);
-    $this->expectExceptionMessage(
-        'Unexpected password reset failure.'
-    );
-
-    $this->passwordResetManager->reset(
-        $credentials,
-        $token,
-        $password
-    );
-}
+            $token,
+            $password
+        );
+    }
 
     /**
      * Verify that PasswordResetManager implements the package
