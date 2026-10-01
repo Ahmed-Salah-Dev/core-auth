@@ -6,8 +6,10 @@ namespace AhmedSalahDev\CoreAuth;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
+use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
 use Illuminate\Support\ServiceProvider;
 
 final class CoreAuthServiceProvider extends ServiceProvider
@@ -25,6 +27,11 @@ final class CoreAuthServiceProvider extends ServiceProvider
         $this->app->singleton(
             PasswordResetManagerInterface::class,
             PasswordResetManager::class
+        );
+
+        $this->app->singleton(
+            EmailVerificationManagerInterface::class,
+            EmailVerificationManager::class
         );
     }
 
