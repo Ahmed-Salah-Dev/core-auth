@@ -6,10 +6,8 @@ namespace AhmedSalahDev\CoreAuth\Services;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\GuardInterface;
-use AhmedSalahDev\CoreAuth\Exceptions\AuthenticationException;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Throwable;
 
 final class AuthManager implements AuthManagerInterface
 {
@@ -28,25 +26,15 @@ final class AuthManager implements AuthManagerInterface
      * @param bool $remember Whether the authenticated session should be remembered.
      *
      * @return bool True when authentication succeeds, otherwise false.
-     *
-     * @throws AuthenticationException
      */
     public function login(
         array $credentials,
         bool $remember = false
-    ): bool
-    {
-        try {
-            return $this->auth
-                ->guard()
-                ->attempt($credentials, $remember);
-        } catch (Throwable $exception) {
-            throw new AuthenticationException(
-                $exception->getMessage(),
-                (int) $exception->getCode(),
-                $exception
-            );
-        }
+    ): bool {
+        return $this->defaultGuard()->login(
+            $credentials,
+            $remember
+        );
     }
 
     /**
@@ -54,9 +42,7 @@ final class AuthManager implements AuthManagerInterface
      */
     public function logout(): void
     {
-        $this->auth
-            ->guard()
-            ->logout();
+        $this->defaultGuard()->logout();
     }
 
     /**
@@ -66,9 +52,7 @@ final class AuthManager implements AuthManagerInterface
      */
     public function check(): bool
     {
-        return $this->auth
-            ->guard()
-            ->check();
+        return $this->defaultGuard()->check();
     }
 
     /**
@@ -78,9 +62,7 @@ final class AuthManager implements AuthManagerInterface
      */
     public function user(): ?Authenticatable
     {
-        return $this->auth
-            ->guard()
-            ->user();
+        return $this->defaultGuard()->user();
     }
 
     /**
@@ -90,6 +72,16 @@ final class AuthManager implements AuthManagerInterface
     {
         return new AuthGuard(
             $this->auth->guard($name)
+        );
+    }
+
+    /**
+     * Retrieve the default authentication guard.
+     */
+    private function defaultGuard(): GuardInterface
+    {
+        return new AuthGuard(
+            $this->auth->guard()
         );
     }
 }
