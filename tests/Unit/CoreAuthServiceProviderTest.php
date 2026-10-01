@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
-use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\AuthorizationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
 use AhmedSalahDev\CoreAuth\CoreAuthServiceProvider;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
-use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
+use AhmedSalahDev\CoreAuth\Services\AuthorizationManager;
 use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
+use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
 use Orchestra\Testbench\TestCase;
 
 final class CoreAuthServiceProviderTest extends TestCase
@@ -44,6 +46,18 @@ final class CoreAuthServiceProviderTest extends TestCase
         $this->assertInstanceOf(
             AuthManager::class,
             $authManager
+        );
+    }
+
+    public function test_authorization_manager_is_bound_to_container(): void
+    {
+        $authorizationManager = $this->app->make(
+            AuthorizationManagerInterface::class
+        );
+
+        $this->assertInstanceOf(
+            AuthorizationManager::class,
+            $authorizationManager
         );
     }
 
@@ -100,6 +114,19 @@ final class CoreAuthServiceProviderTest extends TestCase
 
         $second = $this->app->make(
             PasswordResetManagerInterface::class
+        );
+
+        $this->assertSame($first, $second);
+    }
+
+    public function test_authorization_manager_is_registered_as_singleton(): void
+    {
+        $first = $this->app->make(
+            AuthorizationManagerInterface::class
+        );
+
+        $second = $this->app->make(
+            AuthorizationManagerInterface::class
         );
 
         $this->assertSame($first, $second);
