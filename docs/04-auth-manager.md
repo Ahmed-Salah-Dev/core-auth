@@ -2,7 +2,7 @@
 
 ## 1. Phase
 
-**Authentication Manager, Generalized Login, Guard Support, Typed Authenticated User Support, Authentication Exception Integration, Authentication Events Integration, and Remember Me Support**
+**Authentication Manager, Generalized Login, Guard Support, Typed Authenticated User Support, Authentication Exception Integration, Authentication Events Integration, Remember Me Support, and Authentication Contract/Public API Refinement**
 
 ---
 
@@ -24,7 +24,9 @@
 
 مع الحفاظ على مسؤولية Laravel عن تفاصيل Authentication infrastructure الداخلية.
 
-التصميم الحالي لا يحاول إعادة بناء Laravel Authentication، وإنما يوفر طبقة package مستقلة يمكن تطويرها مستقبلًا دون ربط التطبيق مباشرة بالتفاصيل الداخلية.
+التصميم الحالي لا يحاول إعادة بناء Laravel Authentication، وإنما يوفر طبقة package مستقلة يمكن تطويرها مستقبلًا دون ربط التطبيق مباشرة بالتفاصيل الداخلية لـLaravel.
+
+تم كذلك إجراء **Authentication Contract/Public API Refinement** بهدف توحيد طريقة تعامل `AuthManager` مع الـguards، وتقليل تكرار المسؤوليات، وجعل `AuthGuard` هو abstraction boundary الموحدة بين package وLaravel Authentication.
 
 ---
 
@@ -41,28 +43,64 @@ AuthManagerInterface
      ▼
 AuthManager
      │
-     ├── Default Authentication
+     ├── defaultGuard()
+     │        │
+     │        ▼
+     │     AuthGuard
      │
-     └── Named Guards
+     └── guard($name)
               │
               ▼
-         AuthGuard
+           AuthGuard
               │
               ▼
-     Laravel Stateful Guard
+     Laravel StatefulGuard
 ```
 
-أما الاستثناءات:
+بالتالي فإن العمليات التالية:
 
 ```text
-Laravel / Infrastructure Exception
-              │
-              ▼
-   AuthenticationException
-              │
-              ▼
-         Application
+Login
+Logout
+Check
+User
 ```
+
+تمر جميعها عبر `AuthGuard`.
+
+أما الـNamed Guards فيتم الوصول إليها من خلال:
+
+```php
+$authManager->guard($name);
+```
+
+ويتم إرجاع:
+
+```php
+GuardInterface
+```
+
+بدل Laravel Guard مباشرة.
+
+أما Authentication Exception boundary:
+
+```text
+Laravel StatefulGuard
+          │
+          ▼
+       Throwable
+          │
+          ▼
+      AuthGuard
+          │
+          ▼
+AuthenticationException
+          │
+          ▼
+      Application
+```
+
+ويكون `AuthGuard` هو المسؤول عن تحويل unexpected authentication exceptions إلى `AuthenticationException`.
 
 أما Authentication Events وRemember Me فتبقى مسؤوليتها الأساسية لدى Laravel Authentication infrastructure.
 
@@ -86,6 +124,9 @@ Laravel / Infrastructure Exception
 * توفير Unit Tests وIntegration Tests.
 * الحفاظ على قابلية التوسع المستقبلية.
 * الحفاظ على Backward Compatibility عند إضافة الخيارات الجديدة.
+* توحيد تعامل `AuthManager` مع الـdefault والـnamed guards.
+* إبقاء exception handling في abstraction المسؤولة عنه.
+* تقليل تكرار Laravel Guard handling داخل `AuthManager`.
 
 ---
 
@@ -124,7 +165,7 @@ src/
 └── CoreAuthServiceProvider.php
 ```
 
-الاختبارات:
+الاختبارات المتعلقة بـAuthentication:
 
 ```text
 tests/
@@ -139,6 +180,8 @@ tests/
 └── Integration/
     └── AuthenticationEventsTest.php
 ```
+
+ميزات Password Reset وEmail Verification موجودة في ملفاتها ووثائقها المستقلة، ولا يتم تكرار تفاصيلها هنا لأن هذا الملف مخصص لـAuthentication Manager.
 
 ---
 
@@ -169,6 +212,8 @@ public function user(): ?Authenticatable;
 public function guard(string $name): GuardInterface;
 ```
 
+الـinterface يمثل API التي يتعامل معها التطبيق دون الحاجة إلى معرفة implementation الداخلي.
+
 ---
 
 # 8. Login API
@@ -193,6 +238,12 @@ $remember
 
 * `$credentials` تحتوي بيانات المصادقة.
 * `$remember` تحدد ما إذا كان Remember Me مطلوبًا.
+
+القيمة الافتراضية لـ`$remember` هي:
+
+```php
+false
+```
 
 ---
 
@@ -261,7 +312,7 @@ $authManager->login(
 false
 ```
 
-وبالتالي فإن الاستخدام القديم:
+وبالتالي فإن الاستخدام السابق:
 
 ```php
 $authManager->login($credentials);
@@ -291,7 +342,7 @@ $authManager->login(
 );
 ```
 
-يتم تمرير القيمة إلى Laravel:
+يكون التدفق:
 
 ```text
 Application
@@ -302,15 +353,17 @@ AuthManagerInterface
      ▼
 AuthManager
      │
-     ├── credentials
+     ▼
+defaultGuard()
      │
-     └── remember = true
-              │
-              ▼
-     Laravel Stateful Guard
-              │
-              ▼
-     attempt($credentials, true)
+     ▼
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
+     │
+     ▼
+attempt($credentials, true)
 ```
 
 وعند:
@@ -324,6 +377,8 @@ $remember = false;
 ```php
 attempt($credentials, false);
 ```
+
+من خلال نفس abstraction path.
 
 ---
 
@@ -375,7 +430,7 @@ Laravel Authentication
 ✓ Remember parameter
 ✓ Default false
 ✓ Parameter forwarding
-✓ Stateful Guard support
+✓ StatefulGuard support
 ✓ Unit coverage
 ✓ Integration coverage
 ```
@@ -386,19 +441,25 @@ Laravel Authentication
 
 # 14. Login Behavior
 
-التدفق الأساسي:
+التدفق الأساسي الحالي:
 
 ```text
 Application
      │
      ▼
+AuthManagerInterface
+     │
+     ▼
 AuthManager
      │
      ▼
-Laravel Auth Factory
+defaultGuard()
      │
      ▼
-Laravel Stateful Guard
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
      │
      ▼
 attempt($credentials, $remember)
@@ -416,7 +477,7 @@ true
 false
 ```
 
-أما unexpected exceptions فتدخل إلى Authentication Exception Boundary.
+أما unexpected exceptions فتدخل إلى Authentication Exception Boundary الموجودة داخل `AuthGuard`.
 
 ---
 
@@ -440,7 +501,7 @@ Unexpected Exception
 credentials invalid
        │
        ▼
-Laravel Guard
+Laravel StatefulGuard
        │
        ▼
 false
@@ -449,10 +510,13 @@ false
 بينما exception غير متوقع:
 
 ```text
-Laravel / Infrastructure
+Laravel StatefulGuard
        │
        ▼
 Throwable
+       │
+       ▼
+AuthGuard
        │
        ▼
 AuthenticationException
@@ -472,14 +536,24 @@ src/Services/AuthManager.php
 
 المسؤوليات الحالية:
 
-* Login باستخدام Default Guard.
+* توفير واجهة Authentication Manager.
+* تنفيذ Login باستخدام الـdefault guard.
 * تمرير credentials.
 * تمرير Remember Me option.
-* Logout.
-* Check.
-* User.
-* إنشاء AuthGuard للـNamed Guard.
-* تحويل unexpected exceptions إلى `AuthenticationException`.
+* تنفيذ Logout باستخدام الـdefault guard.
+* تنفيذ Check باستخدام الـdefault guard.
+* استرجاع User باستخدام الـdefault guard.
+* إنشاء `AuthGuard` للـNamed Guards.
+* توحيد الوصول إلى الـdefault guard من خلال `defaultGuard()`.
+* تفويض Authentication behavior إلى `AuthGuard`.
+
+ولا يعتبر `AuthManager` مسؤولًا عن تحويل unexpected authentication exceptions.
+
+هذه المسؤولية تقع في:
+
+```text
+AuthGuard
+```
 
 ---
 
@@ -502,41 +576,41 @@ public function __construct(
 
 هذا يمنع `AuthManager` من الاعتماد مباشرة على concrete Laravel authentication implementation.
 
+كما أن `AuthManager` لا يحتاج إلى معرفة تفاصيل `StatefulGuard` عند تنفيذ العمليات اليومية؛ إذ يتم التعامل معها من خلال `AuthGuard`.
+
 ---
 
 # 18. AuthManager Login Implementation
 
-المفهوم الحالي:
+التنفيذ الحالي:
 
 ```php
-try {
-    return $this->auth
-        ->guard()
-        ->attempt(
-            $credentials,
-            $remember
-        );
-} catch (Throwable $exception) {
-    throw new AuthenticationException(
-        $exception->getMessage(),
-        (int) $exception->getCode(),
-        $exception
-    );
-}
+return $this->defaultGuard()->login(
+    $credentials,
+    $remember
+);
 ```
 
-وبذلك تكون المسؤوليات واضحة:
+وبالتالي تكون المسؤوليات:
 
 ```text
 AuthManager
-    │
-    │ credentials + remember
-    ▼
-Laravel Stateful Guard
-    │
-    ▼
+     │
+     │ credentials + remember
+     ▼
+defaultGuard()
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
+     │
+     ▼
 attempt()
 ```
+
+ولا يحتوي `AuthManager` على `try/catch` خاص بـAuthentication exceptions.
 
 ---
 
@@ -548,13 +622,19 @@ attempt()
 public function logout(): void;
 ```
 
-التنفيذ يعتمد على Laravel Authentication:
+التنفيذ الحالي يعتمد على الـdefault `AuthGuard`:
 
 ```text
 AuthManager
      │
      ▼
-Laravel Guard
+defaultGuard()
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
      │
      ▼
 logout()
@@ -568,6 +648,21 @@ logout()
 
 ```php
 public function check(): bool;
+```
+
+التنفيذ:
+
+```text
+AuthManager
+     │
+     ▼
+defaultGuard()
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+check()
 ```
 
 القيمة:
@@ -594,6 +689,21 @@ false
 
 ```php
 public function user(): ?Authenticatable;
+```
+
+التنفيذ:
+
+```text
+AuthManager
+     │
+     ▼
+defaultGuard()
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+user()
 ```
 
 القيمة المرجعة:
@@ -643,8 +753,10 @@ guard('api')
 AuthGuard
      │
      ▼
-Laravel Stateful Guard
+Laravel StatefulGuard
 ```
+
+وبذلك يستخدم كل من الـdefault guard والـnamed guards نفس package-level guard abstraction.
 
 ---
 
@@ -672,6 +784,8 @@ public function check(): bool;
 
 public function user(): ?Authenticatable;
 ```
+
+ولا يتم كشف Laravel `StatefulGuard` مباشرة إلى التطبيق من خلال هذا contract.
 
 ---
 
@@ -707,7 +821,14 @@ GuardInterface
 AuthGuard
      │
      ▼
-StatefulGuard
+Laravel StatefulGuard
+```
+
+ويستخدم `AuthGuard` لكل من:
+
+```text
+Default Guard
+Named Guards
 ```
 
 ---
@@ -733,6 +854,8 @@ attempt(
 
 لذلك الاعتماد على `StatefulGuard` يعكس المتطلبات الفعلية للـabstraction الحالية.
 
+إذا تم دعم Token/API Authentication مستقبلًا، يجب تصميم abstraction مناسبة لذلك السيناريو بدل إجبار token-based authentication على نفس stateful contract.
+
 ---
 
 # 26. AuthGuard Login
@@ -746,7 +869,7 @@ public function login(
 ): bool;
 ```
 
-ويتم تمرير القيم مباشرة إلى Laravel:
+ويتم تمرير القيم إلى Laravel:
 
 ```php
 return $this->guard->attempt(
@@ -755,29 +878,41 @@ return $this->guard->attempt(
 );
 ```
 
+مع وجود exception boundary داخل `AuthGuard` لحماية package abstraction من unexpected throwables.
+
 ---
 
 # 27. AuthGuard Exception Boundary
 
-إذا حدث unexpected exception:
+`AuthGuard` هو المكان المركزي لمعالجة unexpected authentication exceptions.
+
+التدفق:
 
 ```text
-StatefulGuard
-     │
-     ▼
+Laravel StatefulGuard
+       │
+       ▼
 Throwable
-     │
-     ▼
+       │
+       ▼
+AuthGuard
+       │
+       ▼
+AuthenticationException
+       │
+       ▼
+Application
+```
+
+وعند إنشاء:
+
+```php
 AuthenticationException
 ```
 
-ويتم الحفاظ على الـoriginal exception:
+يتم الحفاظ على الـoriginal exception كـprevious exception.
 
-```php
-$exception
-```
-
-كـprevious exception.
+وبذلك لا يحتاج `AuthManager` إلى تكرار نفس `try/catch` logic.
 
 ---
 
@@ -802,6 +937,8 @@ mixed
 ```php
 public function user(): ?Authenticatable;
 ```
+
+وهذا يوفر type safety أفضل للمستهلكين.
 
 ---
 
@@ -837,13 +974,16 @@ Login
 Logout
 ```
 
-التدفق المفاهيمي:
+التدفق المفاهيمي الحالي:
 
 ```text
 AuthManager
      │
      ▼
-Stateful Guard
+AuthGuard
+     │
+     ▼
+StatefulGuard
      │
      ▼
 Laravel Authentication
@@ -879,6 +1019,8 @@ Authentication lifecycle
 
 بينما `core-auth` يوفر abstraction فوق Authentication API.
 
+وهذا يعني أن الحزمة لا تحاول استبدال Laravel Event system أو إعادة تنفيذ lifecycle الخاص بالمصادقة.
+
 ---
 
 # 32. Authentication Exception
@@ -896,6 +1038,14 @@ Authentication Exception Boundary
 ```
 
 أي أن unexpected exceptions القادمة من Authentication infrastructure يتم تحويلها إلى exception مخصصة للحزمة.
+
+ويتم تطبيق هذه boundary داخل:
+
+```text
+AuthGuard
+```
+
+وليس داخل `AuthManager`.
 
 ---
 
@@ -923,7 +1073,7 @@ new AuthenticationException(
 $exception->getPrevious();
 ```
 
-وهذا يحافظ على معلومات debugging الأصلية.
+وهذا يحافظ على معلومات debugging الأصلية ويمنع فقدان سبب الخطأ الأساسي.
 
 ---
 
@@ -954,6 +1104,9 @@ Invalid Credentials
 
 ```text
 Unexpected Throwable
+       │
+       ▼
+AuthGuard
        │
        ▼
 AuthenticationException
@@ -1070,7 +1223,10 @@ Remember token exists
 AuthManager
      │
      ▼
-login($credentials, true)
+defaultGuard()
+     │
+     ▼
+AuthGuard
      │
      ▼
 StatefulGuard
@@ -1153,9 +1309,13 @@ Singleton
 ```text
 Container Registration
 Authentication Manager Binding
+Password Reset Manager Binding
+Email Verification Manager Binding
 ```
 
-ولا يحتوي على Authentication business logic.
+ولا يحتوي Service Provider على Authentication business logic.
+
+تفاصيل Password Reset وEmail Verification موثقة في الملفات الخاصة بكل feature.
 
 ---
 
@@ -1176,6 +1336,8 @@ Integration Tests
 
 تركز على التكامل مع Laravel Authentication environment.
 
+ويتم استخدام كل مستوى عندما يكون مناسبًا لطبيعة behavior المراد اختباره.
+
 ---
 
 # 43. AuthManager Tests
@@ -1193,9 +1355,10 @@ Integration Tests
 ✓ Check
 ✓ User
 ✓ Named Guard
-✓ AuthenticationException
-✓ Previous Exception
+✓ AuthenticationException propagation
 ```
+
+اختبارات `AuthManager` تتحقق من أن الـmanager يمرر behavior بشكل صحيح إلى الـguard abstraction، بينما يتم اختبار exception wrapping نفسه داخل `AuthGuard`.
 
 ---
 
@@ -1218,6 +1381,8 @@ Integration Tests
 ✓ Previous Exception
 ```
 
+وتعتبر هذه الاختبارات المستوى الأساسي لاختبار behavior الخاص بالـguard adapter وexception boundary.
+
 ---
 
 # 45. Contract Tests
@@ -1236,7 +1401,7 @@ AuthManagerInterface
 
 بشكل صحيح.
 
-ويتم التحقق كذلك من:
+ويتم التحقق من التوقيع:
 
 ```php
 login(
@@ -1244,6 +1409,8 @@ login(
     bool $remember = false
 ): bool;
 ```
+
+بالإضافة إلى بقية public methods الموجودة في contract.
 
 ---
 
@@ -1257,6 +1424,10 @@ login(
 ✓ Singleton Behavior
 ```
 
+لـAuthentication Manager.
+
+كما يتم اختبار bindings الخاصة بالـpackage services الأخرى في اختبارات Service Provider المناسبة.
+
 ---
 
 # 47. Authentication Exception Tests
@@ -1269,6 +1440,8 @@ login(
 ✓ Previous Exception
 ✓ Exception Inheritance
 ```
+
+لضمان أن `AuthenticationException` تحافظ على exception information المطلوبة.
 
 ---
 
@@ -1285,6 +1458,8 @@ Laravel Authentication
 Authentication Events
 Remember Token support
 ```
+
+وهذا يسمح باختبار behavior الذي يعتمد على تفاعل أكثر من component داخل Laravel.
 
 ---
 
@@ -1400,6 +1575,8 @@ Mockery
 
 لعزل Laravel Authentication dependencies.
 
+يتم استخدام typed mocks عند التعامل مع Laravel authentication contracts.
+
 مثال:
 
 ```php
@@ -1424,7 +1601,7 @@ credentials
 remember
 ```
 
-يتم تمريرهما إلى Laravel Guard.
+يتم تمريرهما إلى Laravel Guard abstraction.
 
 ---
 
@@ -1460,13 +1637,23 @@ $this->assertTrue(
 );
 ```
 
-وهذا يثبت انتقال Remember Me option من package API إلى Laravel Guard.
+وهذا يثبت انتقال Remember Me option عبر:
+
+```text
+AuthManager
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+StatefulGuard
+```
 
 ---
 
 # 55. Exception Mocking
 
-يمكن محاكاة unexpected exception:
+يمكن محاكاة unexpected exception على مستوى الـguard dependency:
 
 ```php
 $guard
@@ -1494,6 +1681,14 @@ AuthenticationException
 ```php
 $exception->getPrevious();
 ```
+
+المسؤول عن wrapping هو:
+
+```text
+AuthGuard
+```
+
+بينما يقوم `AuthManager` بتفويض العملية ولا يعيد إنشاء exception boundary.
 
 ---
 
@@ -1534,6 +1729,10 @@ Authentication Behavior
 @return bool
 @throws AuthenticationException
 ```
+
+يجب أن يعكس PHPDoc مكان responsibility الفعلي.
+
+لذلك فإن `AuthGuard` هو المكان الأساسي الذي يوثق Authentication exception behavior، بينما `AuthManager` يوثق delegation behavior.
 
 ---
 
@@ -1611,7 +1810,12 @@ AuthGuard
 GuardInterface
 ```
 
-وهذا يحافظ على package abstraction.
+ويتم استخدام نفس abstraction لكل من:
+
+```text
+Default Guard
+Named Guards
+```
 
 ---
 
@@ -1655,6 +1859,14 @@ AuthenticationException
 
 مع الحفاظ على original exception.
 
+وتقع هذه المسؤولية في:
+
+```text
+AuthGuard
+```
+
+وليس `AuthManager`.
+
 ---
 
 ## 58.8 Normal Failure vs Exceptional Failure
@@ -1672,6 +1884,9 @@ false
 
 ```text
 Unexpected Throwable
+       │
+       ▼
+AuthGuard
        │
        ▼
 AuthenticationException
@@ -1711,19 +1926,55 @@ Laravel Authentication
 
 ---
 
+## 58.11 Centralized Guard Handling
+
+يتم توحيد default guard operations داخل:
+
+```php
+private function defaultGuard(): GuardInterface
+```
+
+ويتم كذلك إرجاع `AuthGuard` عند استخدام Named Guard.
+
+وبالتالي لا يحتوي `AuthManager` على مسارين مختلفين للتعامل مع Laravel guards.
+
+النتيجة:
+
+```text
+Default Guard ──┐
+                ├──> AuthGuard ──> StatefulGuard
+Named Guard ────┘
+```
+
+وهذا يقلل duplication ويحافظ على consistency في architecture.
+
+---
+
 # 59. Current Limitations
 
-الميزات التالية لم يتم تنفيذها ضمن النطاق الحالي:
+الميزات أو التحسينات التالية لم يتم تنفيذها ضمن النطاق الحالي:
 
 ```text
 Authentication Logging Abstraction
 Rate Limiting
 Authentication Throttling
-Password Reset
-Email Verification
 Multi-Factor Authentication
 Authentication Error Categories
+API / Token Authentication
+Authorization
+Session Management
+Social Authentication
+Advanced Account Security
 ```
+
+أما الميزات التالية فقد تم تنفيذها في package:
+
+```text
+Password Reset
+Email Verification
+```
+
+وتوجد لكل منهما documentation مستقلة.
 
 أما Remember Me الأساسي فقد تم تنفيذه من خلال:
 
@@ -1765,7 +2016,9 @@ login($credentials, $remember)
 ✓ GuardInterface
 ✓ AuthGuard
 ✓ Named Guards
+✓ Default Guard Adapter
 ✓ StatefulGuard integration
+✓ Centralized Guard Handling
 ```
 
 ## Typed User
@@ -1783,6 +2036,7 @@ login($credentials, $remember)
 ✓ AuthenticationException
 ✓ Exception boundary
 ✓ Previous Exception preservation
+✓ Centralized exception handling in AuthGuard
 ```
 
 ## Authentication Events
@@ -1810,6 +2064,26 @@ login($credentials, $remember)
 ✓ Remember Token integration coverage
 ```
 
+## Account Recovery
+
+```text
+✓ Password Reset
+✓ Email Verification
+```
+
+تفاصيل هذه الميزات موجودة في وثائقها المستقلة.
+
+## Contract / Public API Refinement
+
+```text
+✓ AuthManager guard handling refinement
+✓ Default Guard centralized through AuthGuard
+✓ Named Guard uses AuthGuard
+✓ Exception boundary centralized in AuthGuard
+✓ AuthManager responsibilities reduced to orchestration/delegation
+✓ Public API consistency reviewed
+```
+
 ## Testing
 
 ```text
@@ -1830,6 +2104,8 @@ login($credentials, $remember)
 ✓ Exception documentation
 ✓ Authentication Events documentation
 ✓ Remember Me documentation
+✓ Password Reset documentation
+✓ Email Verification documentation
 ```
 
 ---
@@ -1847,19 +2123,30 @@ Authentication Exceptions       ✓
 Authentication Events           ✓
 Remember Me                     ✓
 Remember Token Integration      ✓
+Guard Abstraction               ✓
+Centralized Guard Handling      ✓
 Unit Tests                      ✓
 Integration Tests               ✓
 Laravel Testbench               ✓
 PHPDoc                          ✓
 Documentation                   ✓
 Service Container               ✓
+Contract Refinement             ✓
+Public API Refinement            ✓
+```
+
+وعلى مستوى package توجد كذلك:
+
+```text
+Password Reset                   ✓
+Email Verification               ✓
 ```
 
 ---
 
 # 62. Current Test Result
 
-آخر تشغيل كامل لـPHPUnit بعد إضافة Remember Me:
+آخر تشغيل كامل لـPHPUnit بعد Contract/Public API Refinement:
 
 ```bash
 vendor/bin/phpunit
@@ -1868,8 +2155,8 @@ vendor/bin/phpunit
 النتيجة:
 
 ```text
-37 tests
-55 assertions
+58 tests
+110 assertions
 OK
 ```
 
@@ -1920,22 +2207,21 @@ working tree clean
 
 يتم تطوير الميزات باستخدام Feature Branches مستقلة.
 
-النمط:
+التاريخ الرئيسي للميزات المتعلقة بـAuthentication يتضمن:
 
 ```text
 develop
    │
    ├── feature/generalize-auth-login
-   │
    ├── feature/auth-manager-guard-support
-   │
    ├── feature/auth-manager-user
-   │
    ├── feature/authentication-exception-integration
-   │
    ├── feature/authentication-events
-   │
-   └── feature/authentication-remember-me
+   ├── feature/authentication-remember-me
+   ├── feature/password-reset
+   ├── feature/core-auth-architecture-refinement
+   ├── feature/email-verification
+   └── feature/auth-contract-refinement
 ```
 
 بعد اكتمال Feature:
@@ -1956,49 +2242,48 @@ Pull Request
 develop
 ```
 
-بعد الدمج والتأكد من استقرار `develop` يتم حذف Feature Branch المنتهي.
+بعد الدمج والتأكد من استقرار `develop` يتم حذف Feature Branch المنتهي محليًا ومن GitHub.
 
 ---
 
 # 65. Latest Completed Feature
 
-آخر Feature تم تنفيذها:
+آخر Feature تم تنفيذها ودمجها:
 
 ```text
-feature/authentication-remember-me
+feature/auth-contract-refinement
 ```
 
 Commit:
 
 ```text
-73ee724
+66d666f
 ```
 
 Commit message:
 
 ```text
-feat: add remember me authentication support
+refactor: centralize guard handling in auth manager
 ```
 
 التعديلات الرئيسية:
 
 ```text
-AuthManagerInterface
-GuardInterface
 AuthManager
+AuthManagerInterface
 AuthGuard
 AuthManagerTest
-AuthGuardTest
-AuthenticationEventsTest
 ```
 
 وتشمل:
 
 ```text
-Remember Me Login Support
-Remember Me Unit Coverage
-Remember Me Integration Coverage
-Remember Token Test Support
+Centralized Default Guard Handling
+AuthGuard Usage for Default Operations
+Named Guard Consistency
+Centralized Authentication Exception Boundary
+AuthManager Responsibility Refinement
+Public API Consistency
 ```
 
 تم تنفيذ دورة العمل:
@@ -2011,6 +2296,13 @@ Remember Token Test Support
 ✓ حذف Feature Branch محليًا
 ✓ حذف Feature Branch من GitHub
 ✓ git fetch --prune
+```
+
+تم دمج الـFeature في `develop` من خلال:
+
+```text
+d711753
+Merge pull request #12 from Ahmed-Salah-Dev/feature/auth-contract-refinement
 ```
 
 حالة `develop` الحالية:
@@ -2036,6 +2328,9 @@ Design
 Contract
     │
     ▼
+Architecture Review
+    │
+    ▼
 Implementation
     │
     ▼
@@ -2043,6 +2338,9 @@ Unit Tests
     │
     ▼
 Integration Tests
+    │
+    ▼
+Consistency Review
     │
     ▼
 Documentation
@@ -2057,6 +2355,8 @@ Pull Request
 develop
 ```
 
+ولا يتم الانتقال مباشرة من Requirement إلى Implementation دون مراجعة architecture عندما تكون الميزة ذات تأثير على public API أو boundaries.
+
 ---
 
 # 67. Development Principles
@@ -2065,19 +2365,42 @@ develop
 
 تعريف Contract قبل Implementation عندما يكون ذلك مناسبًا.
 
+---
+
 ## 67.2 Test First / Test Driven Where Practical
 
 تحديد behavior واختباره قبل أو بالتزامن مع implementation.
 
-## 67.3 Loose Coupling
+---
+
+## 67.3 Architecture Review
+
+قبل تنفيذ feature تؤثر على architecture يجب مراجعة:
+
+```text
+Responsibilities
+Dependencies
+Contracts
+Abstractions
+Extension Points
+Backward Compatibility
+```
+
+---
+
+## 67.4 Loose Coupling
 
 تقليل الارتباط المباشر بين Application وLaravel implementations.
 
-## 67.4 Dependency Injection
+---
+
+## 67.5 Dependency Injection
 
 استخدام Constructor Injection وLaravel Container.
 
-## 67.5 Type Safety
+---
+
+## 67.6 Type Safety
 
 استخدام الأنواع الواضحة:
 
@@ -2088,11 +2411,15 @@ array<string, mixed>
 GuardInterface
 ```
 
-## 67.6 Small Features
+---
+
+## 67.7 Small Features
 
 تقسيم التطوير إلى Features صغيرة قابلة للاختبار والمراجعة والدمج.
 
-## 67.7 Backward Compatibility
+---
+
+## 67.8 Backward Compatibility
 
 عدم كسر API الحالي إلا بقرار معماري واضح.
 
@@ -2116,19 +2443,41 @@ $remember = false
 
 هو default behavior.
 
-## 67.8 Responsibility Separation
+---
+
+## 67.9 Responsibility Separation
 
 كل class أو abstraction يجب أن يمتلك مسؤولية محددة.
 
-## 67.9 Testability
+في Authentication architecture الحالية:
+
+```text
+AuthManager
+    │
+    │ orchestration
+    ▼
+AuthGuard
+    │
+    │ authentication adapter
+    ▼
+Laravel StatefulGuard
+```
+
+---
+
+## 67.10 Testability
 
 تصميم المكونات بحيث يمكن اختبارها مع أقل اعتماد ممكن على environment حقيقي.
 
-## 67.10 Documentation
+---
 
-يجب أن يعكس التوثيق behavior الفعلي للكود.
+## 67.11 Documentation
 
-## 67.11 Stable Develop
+يجب أن يعكس التوثيق behavior الفعلي للكود والarchitecture الحالية.
+
+---
+
+## 67.12 Stable Develop
 
 يجب أن يبقى:
 
@@ -2138,12 +2487,17 @@ develop
 
 قابلًا للاختبار بعد دمج الميزات.
 
-## 67.12 Exception Boundary
+---
+
+## 67.13 Exception Boundary
 
 يجب الحفاظ على boundary واضحة بين:
 
 ```text
 Laravel / Infrastructure
+        │
+        ▼
+AuthGuard
         │
         ▼
 CoreAuth Exception Layer
@@ -2152,11 +2506,17 @@ CoreAuth Exception Layer
 Application
 ```
 
-## 67.13 Integration Testing
+وتحديد مكان exception handling بوضوح يمنع تكرار responsibility في أكثر من class.
+
+---
+
+## 67.14 Integration Testing
 
 يجب استخدام Integration Tests عندما يكون behavior متعلقًا بتكامل عدة مكونات Laravel وليس class واحدًا فقط.
 
-## 67.14 Framework Delegation
+---
+
+## 67.15 Framework Delegation
 
 عندما توفر Laravel Authentication behavior مناسبًا، يجب أن تعتمد الحزمة عليه بدل إعادة تنفيذ نفس infrastructure داخل package.
 
@@ -2168,6 +2528,23 @@ Authentication Events
 Session Authentication
 User Provider interaction
 ```
+
+---
+
+## 67.16 Consistency Review
+
+بعد implementation والاختبارات يجب مراجعة:
+
+```text
+Contracts
+Implementations
+Dependencies
+Exception Boundaries
+Tests
+Documentation
+```
+
+للتأكد من أن جميعها تعكس architecture نفسها.
 
 ---
 
@@ -2185,10 +2562,13 @@ AuthManagerInterface
 AuthManager
      │
      ▼
-AuthFactory
+defaultGuard()
      │
      ▼
-Laravel Stateful Guard
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
      │
      ▼
 attempt($credentials, false)
@@ -2215,10 +2595,13 @@ AuthManagerInterface
 AuthManager
      │
      ▼
-AuthFactory
+defaultGuard()
      │
      ▼
-Laravel Stateful Guard
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
      │
      ▼
 attempt($credentials, true)
@@ -2245,7 +2628,13 @@ Application
 AuthManager
      │
      ▼
-Stateful Guard
+defaultGuard()
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+StatefulGuard
      │
      ▼
 attempt($credentials, false)
@@ -2268,7 +2657,13 @@ Application
 AuthManager
      │
      ▼
-Laravel Authentication
+defaultGuard()
+     │
+     ▼
+AuthGuard
+     │
+     ▼
+Laravel StatefulGuard
      │
      ▼
 Throwable
@@ -2278,6 +2673,20 @@ AuthenticationException
      │
      ▼
 Application
+```
+
+المهم هنا أن:
+
+```text
+AuthManager
+```
+
+لا يقوم بعملية wrapping.
+
+الـexception boundary موجودة في:
+
+```text
+AuthGuard
 ```
 
 ---
@@ -2295,41 +2704,62 @@ Application
                               ▼
                          AuthManager
                               │
-               ┌──────────────┴──────────────┐
-               │                             │
-               ▼                             ▼
-        Default Guard                  Named Guard
-               │                             │
-               ▼                             ▼
-     Laravel StatefulGuard              AuthGuard
-               │                             │
-               └──────────────┬──────────────┘
+                    ┌─────────┴─────────┐
+                    │                   │
+                    ▼                   ▼
+             defaultGuard()         guard($name)
+                    │                   │
+                    ▼                   ▼
+                AuthGuard            AuthGuard
+                    │                   │
+                    └─────────┬─────────┘
                               │
                               ▼
-                   Laravel Authentication
+                    Laravel StatefulGuard
                               │
-             ┌────────────────┼────────────────┐
-             │                │                │
-             ▼                ▼                ▼
-          Session          Events        Remember Me
-                                             │
-                                             ▼
-                                      Remember Token
+                    ┌─────────┼─────────┐
+                    │         │         │
+                    ▼         ▼         ▼
+                 Session    Events   Remember Me
+                                      │
+                                      ▼
+                               Remember Token
 ```
 
 Exception boundary:
 
 ```text
-Laravel Authentication
+Laravel StatefulGuard
           │
           ▼
        Throwable
+          │
+          ▼
+      AuthGuard
           │
           ▼
 AuthenticationException
           │
           ▼
       Application
+```
+
+المبدأ الأساسي:
+
+```text
+Application
+      │
+      ▼
+CoreAuth Contracts
+      │
+      ▼
+CoreAuth Implementations
+      │
+      ▼
+Laravel Authentication Contracts
+      │
+      ▼
+Laravel Authentication Infrastructure
 ```
 
 ---
@@ -2375,6 +2805,8 @@ Named Guard:
 $authManager->guard('api');
 ```
 
+ويظل التطبيق يتعامل مع package contracts بدل Laravel guard implementations مباشرة.
+
 ---
 
 # 71. Future Extension Strategy
@@ -2382,10 +2814,16 @@ $authManager->guard('api');
 عند إضافة Feature جديدة، يجب الحفاظ على نفس المبادئ:
 
 ```text
-Feature
+Requirement
+   │
+   ▼
+Design
    │
    ▼
 Contract
+   │
+   ▼
+Architecture Review
    │
    ▼
 Implementation
@@ -2395,6 +2833,9 @@ Tests
    │
    ▼
 Integration
+   │
+   ▼
+Consistency Review
    │
    ▼
 Documentation
@@ -2410,6 +2851,16 @@ Clear Responsibility
 Stable Boundary
 Testable Behavior
 ```
+
+وعند إضافة authentication mechanism جديد مثل:
+
+```text
+Token Authentication
+Social Authentication
+MFA
+```
+
+يجب أولًا تحديد ما إذا كان يحتاج abstraction مستقلة بدل توسيع abstraction موجودة بشكل يؤدي إلى coupling أو responsibilities غير متجانسة.
 
 ---
 
@@ -2436,7 +2887,37 @@ Testable Behavior
 ✓ Integration Testing
 ✓ Laravel Testbench
 ✓ Service Container Binding
+✓ Centralized Guard Handling
+✓ Contract/Public API Refinement
 ```
+
+وعلى مستوى package توجد كذلك:
+
+```text
+✓ Password Reset
+✓ Email Verification
+```
+
+ويستخدم Authentication Manager حاليًا architecture موحدة:
+
+```text
+AuthManager
+     │
+     ├── defaultGuard()
+     │        │
+     │        ▼
+     │     AuthGuard
+     │
+     └── guard($name)
+              │
+              ▼
+           AuthGuard
+              │
+              ▼
+     Laravel StatefulGuard
+```
+
+وبذلك أصبح `AuthGuard` هو الـadapter والـexception boundary الأساسية بين package وLaravel Authentication.
 
 أصبح بإمكان التطبيق استخدام:
 
@@ -2472,10 +2953,25 @@ Authentication Events
 الحالة الحالية للاختبارات:
 
 ```text
-37 tests
-55 assertions
+58 tests
+110 assertions
 OK
 ```
+
+وآخر Feature مكتملة هي:
+
+```text
+feature/auth-contract-refinement
+```
+
+مع commit:
+
+```text
+66d666f
+refactor: centralize guard handling in auth manager
+```
+
+وقد تم دمجها في `develop`، وأصبحت الشجرة الحالية مستقرة ونظيفة.
 
 وبذلك يمثل `core-auth` حاليًا أساسًا منظمًا وقابلًا للتوسع لطبقة Authentication، مع الحفاظ على الفصل بين:
 
