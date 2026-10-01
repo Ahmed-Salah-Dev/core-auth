@@ -6,9 +6,11 @@ namespace Tests\Unit;
 
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
 use AhmedSalahDev\CoreAuth\CoreAuthServiceProvider;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
+use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
 use Orchestra\Testbench\TestCase;
 
 final class CoreAuthServiceProviderTest extends TestCase
@@ -55,6 +57,31 @@ final class CoreAuthServiceProviderTest extends TestCase
             PasswordResetManager::class,
             $passwordResetManager
         );
+    }
+
+    public function test_email_verification_manager_is_bound_to_container(): void
+    {
+        $emailVerificationManager = $this->app->make(
+            EmailVerificationManagerInterface::class
+        );
+
+        $this->assertInstanceOf(
+            EmailVerificationManager::class,
+            $emailVerificationManager
+        );
+    }
+
+    public function test_email_verification_manager_is_registered_as_singleton(): void
+    {
+        $first = $this->app->make(
+            EmailVerificationManagerInterface::class
+        );
+
+        $second = $this->app->make(
+            EmailVerificationManagerInterface::class
+        );
+
+        $this->assertSame($first, $second);
     }
 
     public function test_auth_manager_is_registered_as_singleton(): void
