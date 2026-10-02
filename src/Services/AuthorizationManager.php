@@ -36,6 +36,21 @@ final class AuthorizationManager implements AuthorizationManagerInterface
         );
     }
 
+    /**
+     * Create an authorization manager for a specific user.
+     *
+     * @param mixed $user
+     *
+     * @return static
+     */
+    public function forUser(
+        mixed $user
+    ): static {
+        return new static(
+            $this->gate->forUser($user)
+        );
+    }
+
     public function authorize(
         mixed $ability,
         mixed $arguments = []

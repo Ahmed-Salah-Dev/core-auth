@@ -121,6 +121,60 @@ final class AuthorizationManagerTest extends TestCase
         $this->expectNotToPerformAssertions();
     }
 
+    public function test_for_user_returns_new_authorization_manager(): void
+    {
+        $gate = Mockery::mock(Gate::class);
+        $user = new \stdClass();
+
+        $userGate = Mockery::mock(Gate::class);
+
+        $gate
+            ->shouldReceive('forUser')
+            ->once()
+            ->with($user)
+            ->andReturn($userGate);
+
+        $manager = new AuthorizationManager($gate);
+
+        $userManager = $manager->forUser($user);
+
+        $this->assertInstanceOf(
+            AuthorizationManager::class,
+            $userManager
+        );
+
+        $this->assertNotSame(
+            $manager,
+            $userManager
+        );
+    }
+
+    public function test_for_user_uses_user_specific_gate_for_authorization(): void
+    {
+        $gate = Mockery::mock(Gate::class);
+        $userGate = Mockery::mock(Gate::class);
+        $user = new \stdClass();
+
+        $gate
+            ->shouldReceive('forUser')
+            ->once()
+            ->with($user)
+            ->andReturn($userGate);
+
+        $userGate
+            ->shouldReceive('allows')
+            ->once()
+            ->with('update', [])
+            ->andReturnTrue();
+
+        $manager = new AuthorizationManager($gate);
+
+        $this->assertTrue(
+            $manager
+                ->forUser($user)
+                ->allows('update')
+        );
+    }
     public function test_authorize_wraps_unexpected_exception(): void
     {
         $gate = Mockery::mock(Gate::class);

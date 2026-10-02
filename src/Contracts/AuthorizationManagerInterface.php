@@ -29,6 +29,17 @@ interface AuthorizationManagerInterface
     ): bool;
 
     /**
+     * Create an authorization manager for a specific user.
+     *
+     * @param mixed $user
+     *
+     * @return static
+     */
+    public function forUser(
+        mixed $user
+    ): static;
+
+    /**
      * Authorize the current user to perform an ability.
      *
      * @param mixed $ability
