@@ -102,6 +102,76 @@ final class AuthorizationManagerTest extends TestCase
         );
     }
 
+    public function test_check_returns_true_when_gate_checks_ability(): void
+    {
+        $gate = Mockery::mock(Gate::class);
+
+        $gate
+            ->shouldReceive('check')
+            ->once()
+            ->with('update', [])
+            ->andReturnTrue();
+
+        $manager = new AuthorizationManager($gate);
+
+        $this->assertTrue(
+            $manager->check('update')
+        );
+    }
+
+    public function test_any_returns_true_when_gate_allows_any_ability(): void
+    {
+        $gate = Mockery::mock(Gate::class);
+
+        $gate
+            ->shouldReceive('any')
+            ->once()
+            ->with(['update', 'delete'], [])
+            ->andReturnTrue();
+
+        $manager = new AuthorizationManager($gate);
+
+        $this->assertTrue(
+            $manager->any(['update', 'delete'])
+        );
+    }
+
+    public function test_none_returns_true_when_gate_denies_all_abilities(): void
+    {
+        $gate = Mockery::mock(Gate::class);
+
+        $gate
+            ->shouldReceive('none')
+            ->once()
+            ->with(['update', 'delete'], [])
+            ->andReturnTrue();
+
+        $manager = new AuthorizationManager($gate);
+
+        $this->assertTrue(
+            $manager->none(['update', 'delete'])
+        );
+    }
+
+    public function test_inspect_returns_authorization_response(): void
+    {
+        $gate = Mockery::mock(Gate::class);
+
+        $response = Response::allow();
+
+        $gate
+            ->shouldReceive('inspect')
+            ->once()
+            ->with('update', [])
+            ->andReturn($response);
+
+        $manager = new AuthorizationManager($gate);
+
+        $this->assertSame(
+            $response,
+            $manager->inspect('update')
+        );
+    }
     public function test_authorize_succeeds_when_gate_authorizes_ability(): void
     {
         $gate = Mockery::mock(Gate::class);
