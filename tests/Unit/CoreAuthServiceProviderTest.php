@@ -141,4 +141,39 @@ final class CoreAuthServiceProviderTest extends TestCase
             config('core-auth.user')
         );
     }
+
+    public function test_user_manager_is_resolved_from_the_container(): void
+    {
+        config()->set(
+            'core-auth.user.model',
+            \Tests\Fixtures\User::class
+        );
+
+        $manager = $this->app->make(
+            \AhmedSalahDev\CoreAuth\Contracts\UserManagerInterface::class
+        );
+
+        $this->assertInstanceOf(
+            \AhmedSalahDev\CoreAuth\Services\UserManager::class,
+            $manager
+        );
+    }
+
+    public function test_user_manager_is_registered_as_a_singleton(): void
+    {
+        config()->set(
+            'core-auth.user.model',
+            \Tests\Fixtures\User::class
+        );
+
+        $first = $this->app->make(
+            \AhmedSalahDev\CoreAuth\Contracts\UserManagerInterface::class
+        );
+
+        $second = $this->app->make(
+            \AhmedSalahDev\CoreAuth\Contracts\UserManagerInterface::class
+        );
+
+        $this->assertSame($first, $second);
+    }
 }

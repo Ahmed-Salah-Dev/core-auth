@@ -8,10 +8,12 @@ use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthorizationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\UserManagerInterface;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use AhmedSalahDev\CoreAuth\Services\AuthorizationManager;
 use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
 use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
+use AhmedSalahDev\CoreAuth\Services\UserManager;
 use Illuminate\Support\ServiceProvider;
 
 final class CoreAuthServiceProvider extends ServiceProvider
@@ -44,6 +46,13 @@ final class CoreAuthServiceProvider extends ServiceProvider
         $this->app->singleton(
             AuthorizationManagerInterface::class,
             AuthorizationManager::class
+        );
+
+        $this->app->singleton(
+            UserManagerInterface::class,
+            fn ($app) => new UserManager(
+                $app['config']->get('core-auth.user.model')
+            )
         );
     }
 
