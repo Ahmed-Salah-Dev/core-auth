@@ -131,4 +131,14 @@ final class CoreAuthServiceProviderTest extends TestCase
 
         $this->assertSame($first, $second);
     }
+
+    public function test_core_auth_configuration_is_loaded(): void
+    {
+        $this->assertSame(
+            [
+                'model' => null,
+            ],
+            config('core-auth.user')
+        );
+    }
 }

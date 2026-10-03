@@ -21,6 +21,11 @@ final class CoreAuthServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->mergeConfigFrom(
+            __DIR__ . '/../config/core-auth.php',
+            'core-auth'
+        );
+
         $this->app->singleton(
             AuthManagerInterface::class,
             AuthManager::class
