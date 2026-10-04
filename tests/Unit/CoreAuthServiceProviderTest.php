@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use AhmedSalahDev\CoreAuth\Contracts\ApiTokenManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthorizationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
-use AhmedSalahDev\CoreAuth\Contracts\ApiTokenManagerInterface;
+use AhmedSalahDev\CoreAuth\Services\ApiTokenManager;
 use AhmedSalahDev\CoreAuth\CoreAuthServiceProvider;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use AhmedSalahDev\CoreAuth\Services\AuthorizationManager;
 use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
 use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
-use AhmedSalahDev\CoreAuth\Services\ApiTokenManager;
 use Orchestra\Testbench\TestCase;
 
 final class CoreAuthServiceProviderTest extends TestCase
