@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace AhmedSalahDev\CoreAuth;
 
+use AhmedSalahDev\CoreAuth\Contracts\ApiTokenManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthorizationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\UserManagerInterface;
+use AhmedSalahDev\CoreAuth\Services\ApiTokenManager;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use AhmedSalahDev\CoreAuth\Services\AuthorizationManager;
 use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
@@ -53,6 +55,11 @@ final class CoreAuthServiceProvider extends ServiceProvider
             fn ($app) => new UserManager(
                 $app['config']->get('core-auth.user.model')
             )
+        );
+
+        $this->app->singleton(
+            ApiTokenManagerInterface::class,
+            ApiTokenManager::class
         );
     }
 

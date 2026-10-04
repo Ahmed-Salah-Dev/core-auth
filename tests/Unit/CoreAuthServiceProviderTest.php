@@ -8,11 +8,13 @@ use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthorizationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\EmailVerificationManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\PasswordResetManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\ApiTokenManagerInterface;
 use AhmedSalahDev\CoreAuth\CoreAuthServiceProvider;
 use AhmedSalahDev\CoreAuth\Services\AuthManager;
 use AhmedSalahDev\CoreAuth\Services\AuthorizationManager;
 use AhmedSalahDev\CoreAuth\Services\EmailVerificationManager;
 use AhmedSalahDev\CoreAuth\Services\PasswordResetManager;
+use AhmedSalahDev\CoreAuth\Services\ApiTokenManager;
 use Orchestra\Testbench\TestCase;
 
 final class CoreAuthServiceProviderTest extends TestCase
@@ -130,6 +132,31 @@ final class CoreAuthServiceProviderTest extends TestCase
         );
 
         $this->assertSame($first, $second);
+    }
+
+    public function test_api_token_manager_is_registered_as_singleton(): void
+    {
+        $first = $this->app->make(
+            ApiTokenManagerInterface::class
+        );
+
+        $second = $this->app->make(
+            ApiTokenManagerInterface::class
+        );
+
+        $this->assertSame($first, $second);
+    }
+
+    public function test_api_token_manager_is_bound_to_container(): void
+    {
+        $apiTokenManager = $this->app->make(
+            ApiTokenManagerInterface::class
+        );
+
+        $this->assertInstanceOf(
+            ApiTokenManager::class,
+            $apiTokenManager
+        );
     }
 
     public function test_core_auth_configuration_is_loaded(): void
