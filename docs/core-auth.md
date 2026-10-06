@@ -42,8 +42,11 @@ CoreAuth
 ├── User Management
 │   └── UserManager
 │
-└── API Token Management
-    └── ApiTokenManager
+├── API Token Management
+│   └── ApiTokenManager
+│
+└── API Token Authentication
+    └── ApiAuthenticationManager
 ```
 
 Each responsibility is intentionally separated.
@@ -146,6 +149,16 @@ ApiTokenManager
 Laravel Sanctum
 ```
 
+```text
+API Token Authentication
+      │
+      ▼
+ApiAuthenticationManager
+      │
+      ▼
+Laravel Sanctum Guard
+```
+
 The package intentionally avoids duplicating Laravel's internal security logic.
 
 ---
@@ -163,6 +176,7 @@ EmailVerificationManagerInterface
 AuthorizationManagerInterface
 UserManagerInterface
 ApiTokenManagerInterface
+ApiAuthenticationManagerInterface
 ```
 
 rather than concrete implementations.
@@ -231,6 +245,8 @@ Password Reset → PasswordResetManager
 Email Verification → EmailVerificationManager
 Authorization → AuthorizationManager
 User Management → UserManager
+API Token Management → ApiTokenManager
+API Token Authentication → ApiAuthenticationManager
 ```
 
 This keeps the architecture modular.
@@ -1417,6 +1433,12 @@ ApiTokenManagerInterface
 ApiTokenManager
 ```
 
+```text
+ApiAuthenticationManagerInterface
+        ↓
+ApiAuthenticationManager
+```
+
 For managers that require scalar or configuration-based dependencies, the Service Provider supplies those dependencies explicitly.
 
 ---
@@ -1653,6 +1675,8 @@ Email Verification
 Authorization
 User Management
 API Token Management
+API Token Authentication
+API Token Abilities
 Service Provider Integration
 Contracts
 Package Exceptions
@@ -1661,8 +1685,8 @@ Package Exceptions
 The current verified project state is:
 
 ```text
-104 tests
-196 assertions
+119 tests
+231 assertions
 ```
 
 and the suite is passing.
@@ -1768,6 +1792,17 @@ ApiTokenManagerInterface
 └── revokeAll()
 ```
 
+## API Token Authentication
+
+```text
+ApiAuthenticationManagerInterface
+
+├── check()
+├── user()
+├── tokenCan()
+└── tokenCant()
+```
+
 ---
 
 # 62. Example Application Architecture
@@ -1777,6 +1812,7 @@ A typical application service can depend on CoreAuth Contracts:
 ```php
 use AhmedSalahDev\CoreAuth\Contracts\AuthManagerInterface;
 use AhmedSalahDev\CoreAuth\Contracts\AuthorizationManagerInterface;
+use AhmedSalahDev\CoreAuth\Contracts\ApiAuthenticationManagerInterface;
 
 final class PostService
 {
@@ -2148,7 +2184,8 @@ src/
 │   ├── EmailVerificationManagerInterface.php
 │   ├── AuthorizationManagerInterface.php
 │   ├── UserManagerInterface.php
-│   └── ApiTokenManagerInterface.php
+│   ├── ApiTokenManagerInterface.php
+│   └── ApiAuthenticationManagerInterface.php
 │
 ├── Data/
 │   └── ApiTokenResult.php
@@ -2168,7 +2205,8 @@ src/
 │   ├── EmailVerificationManager.php
 │   ├── AuthorizationManager.php
 │   ├── UserManager.php
-│   └── ApiTokenManager.php
+│   ├── ApiTokenManager.php
+│   └── ApiAuthenticationManager.php
 │
 └── CoreAuthServiceProvider.php
 ```
@@ -2416,8 +2454,16 @@ API Token Management            ✓
 API Token Creation              ✓
 API Token Retrieval             ✓
 API Token Revocation            ✓
+API Token Abilities             ✓
+API Token Expiration            ✓
 API Token Exception             ✓
 Sanctum Integration             ✓
+
+API Token Authentication        ✓
+API Authentication Manager      ✓
+Current API User                ✓
+API Authentication Check        ✓
+API Token Ability Checks        ✓
 
 Container Integration          ✓
 Singleton Bindings             ✓
@@ -2493,15 +2539,25 @@ CoreAuth
 │   ├── findBy()                      ✓
 │   └── create()                      ✓
 │
-└── API Token Management
-    ├── ApiTokenManagerInterface      ✓
-    ├── ApiTokenManager               ✓
-    ├── ApiTokenException             ✓
-    ├── ApiTokenResult                ✓
-    ├── createToken()                 ✓
-    ├── tokens()                      ✓
-    ├── revoke()                      ✓
-    └── revokeAll()                   ✓
+├── API Token Management
+│   ├── ApiTokenManagerInterface      ✓
+│   ├── ApiTokenManager               ✓
+│   ├── ApiTokenException             ✓
+│   ├── ApiTokenResult                ✓
+│   ├── createToken()                 ✓
+│   ├── tokens()                      ✓
+│   ├── revoke()                      ✓
+│   ├── revokeAll()                   ✓
+│   ├── Token Abilities               ✓
+│   └── Token Expiration              ✓
+│
+└── API Token Authentication
+    ├── ApiAuthenticationManagerInterface ✓
+    ├── ApiAuthenticationManager          ✓
+    ├── check()                           ✓
+    ├── user()                            ✓
+    ├── tokenCan()                        ✓
+    └── tokenCant()                       ✓
 ```
 
 ---
@@ -2540,6 +2596,15 @@ And the complete responsibility map is:
        │                           │                           │                           │
        ▼                           ▼                           ▼                           ▼
  Laravel Auth                Laravel Gate                 Eloquent                 Laravel Sanctum
+                                                                                           │
+                                                                                           ▼
+                                                                            API Token Authentication
+                                                                                           │
+                                                                                           ▼
+                                                                            ApiAuthenticationManager
+                                                                                           │
+                                                                                           ▼
+                                                                                  Sanctum Guard
 ```
 
 Alongside:
@@ -2598,7 +2663,8 @@ The final architecture can be summarized as:
 │  Policies                                               │
 │  Eloquent                                               │
 │  Hashing                                                │
-│  Framework Infrastructure                               │
+│  Sanctum Token Infrastructure                            │
+  Framework Infrastructure                               │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -3303,6 +3369,563 @@ Tests
 
 Sanctum remains responsible for the underlying token infrastructure.
 
+
+---
+
+## 91.17 API Token Authentication
+
+API Token Authentication provides a focused abstraction for identifying the currently authenticated API user and checking the abilities of the current Sanctum token.
+
+It is intentionally separate from API Token Management.
+
+```text
+API Token Management
+      │
+      ▼
+Create / Retrieve / Revoke Tokens
+
+API Token Authentication
+      │
+      ▼
+Authenticate Current Request
+      │
+      ▼
+Inspect Current Token Abilities
+```
+
+The abstraction is:
+
+```text
+ApiAuthenticationManagerInterface
+```
+
+implemented by:
+
+```text
+ApiAuthenticationManager
+```
+
+The manager uses Laravel's:
+
+```text
+sanctum
+```
+
+guard rather than implementing token parsing or authentication itself.
+
+---
+
+## 91.18 ApiAuthenticationManagerInterface
+
+The public Contract is:
+
+```php
+public function check(): bool;
+
+public function user(): ?Authenticatable;
+
+public function tokenCan(
+    string $ability
+): bool;
+
+public function tokenCant(
+    string $ability
+): bool;
+```
+
+The application should depend on:
+
+```text
+ApiAuthenticationManagerInterface
+```
+
+rather than:
+
+```text
+ApiAuthenticationManager
+```
+
+This keeps the API authentication layer consistent with the rest of CoreAuth.
+
+---
+
+## 91.19 API Authentication Guard
+
+`ApiAuthenticationManager` resolves the Laravel Sanctum guard through Laravel's authentication factory:
+
+```text
+ApiAuthenticationManager
+        │
+        ▼
+Laravel Auth Factory
+        │
+        ▼
+sanctum Guard
+```
+
+The manager does not create or validate bearer tokens itself.
+
+Laravel Sanctum remains responsible for:
+
+```text
+Token Parsing
+Token Lookup
+Token Authentication
+Authenticated User Resolution
+Current Access Token
+```
+
+CoreAuth exposes a stable package-level API over that infrastructure.
+
+---
+
+## 91.20 check()
+
+The `check()` method determines whether the current API request is authenticated.
+
+Example:
+
+```php
+if ($apiAuth->check()) {
+    // The current API request is authenticated.
+}
+```
+
+The operation delegates to the Sanctum guard:
+
+```php
+$this->auth->guard('sanctum')->check();
+```
+
+The result is:
+
+```text
+true
+```
+
+when the current API request is authenticated, otherwise:
+
+```text
+false
+```
+
+CoreAuth does not implement a second authentication-state mechanism.
+
+---
+
+## 91.21 user()
+
+The `user()` method retrieves the currently authenticated API user.
+
+Example:
+
+```php
+$user = $apiAuth->user();
+```
+
+The return type is:
+
+```php
+?Illuminate\Contracts\Auth\Authenticatable
+```
+
+If no authenticated API user exists:
+
+```text
+null
+```
+
+is returned.
+
+The manager delegates user resolution to the Sanctum guard.
+
+---
+
+## 91.22 tokenCan()
+
+The `tokenCan()` method checks whether the current API token has a given ability.
+
+Example:
+
+```php
+if ($apiAuth->tokenCan('posts:write')) {
+    // The current token has the required ability.
+}
+```
+
+The method delegates the ability check to the authenticated user's Sanctum token support.
+
+Conceptually:
+
+```text
+Current API Request
+        │
+        ▼
+Sanctum Guard
+        │
+        ▼
+Authenticated User
+        │
+        ▼
+HasApiTokens
+        │
+        ▼
+Current Access Token
+        │
+        ▼
+Ability Check
+```
+
+CoreAuth does not duplicate Sanctum's token ability storage or matching logic.
+
+The current implementation safely returns:
+
+```text
+false
+```
+
+when there is no authenticated user or the user does not provide Sanctum API-token support.
+
+---
+
+## 91.23 tokenCant()
+
+The `tokenCant()` method provides the inverse of `tokenCan()`.
+
+Example:
+
+```php
+if ($apiAuth->tokenCant('posts:write')) {
+    abort(403);
+}
+```
+
+Its behavior is equivalent to:
+
+```php
+return ! $this->tokenCan($ability);
+```
+
+Therefore:
+
+```text
+tokenCan()  → ability exists
+tokenCant() → ability does not exist
+```
+
+This keeps the public API small while providing both positive and negative checks.
+
+---
+
+## 91.24 API Token Authentication Example
+
+A service or controller can depend on the Contract:
+
+```php
+use AhmedSalahDev\CoreAuth\Contracts\ApiAuthenticationManagerInterface;
+
+final class ApiPostService
+{
+    public function __construct(
+        private readonly ApiAuthenticationManagerInterface $apiAuth,
+    ) {
+    }
+
+    public function update(): void
+    {
+        if ($this->apiAuth->tokenCant('posts:write')) {
+            abort(403);
+        }
+
+        // Continue the operation...
+    }
+}
+```
+
+The application does not need to instantiate:
+
+```text
+ApiAuthenticationManager
+```
+
+directly.
+
+Laravel's container resolves:
+
+```php
+app(ApiAuthenticationManagerInterface::class);
+```
+
+through the CoreAuth Service Provider.
+
+---
+
+## 91.25 API Token Management vs API Token Authentication
+
+These are related but separate responsibilities.
+
+### API Token Management
+
+Responsible for:
+
+```text
+Create Token
+Retrieve Tokens
+Revoke Token
+Revoke All Tokens
+Assign Abilities
+Assign Expiration
+```
+
+Implemented by:
+
+```text
+ApiTokenManager
+```
+
+### API Token Authentication
+
+Responsible for:
+
+```text
+Check Current API Authentication
+Retrieve Current API User
+Check Current Token Ability
+Check Missing Current Token Ability
+```
+
+Implemented by:
+
+```text
+ApiAuthenticationManager
+```
+
+The boundary is:
+
+```text
+ApiTokenManager
+      │
+      ▼
+Manage Token Lifecycle
+
+ApiAuthenticationManager
+      │
+      ▼
+Use Current Token for the API Request
+```
+
+No functionality is duplicated between the two managers.
+
+---
+
+## 91.26 API Token Abilities vs Application Authorization
+
+Token abilities and application authorization are intentionally different concepts.
+
+Token abilities answer:
+
+```text
+What capability does this API token have?
+```
+
+Application authorization answers:
+
+```text
+Is this user allowed to perform this operation on this resource?
+```
+
+Therefore:
+
+```text
+API Token Ability
+        │
+        ▼
+Can this token perform this category of operation?
+        │
+        ▼
+Application Authorization
+        │
+        ▼
+Can this authenticated user perform this action?
+```
+
+The application may use both layers.
+
+For example:
+
+```text
+Request
+   │
+   ▼
+Sanctum Authentication
+   │
+   ▼
+ApiAuthenticationManager::check()
+   │
+   ▼
+ApiAuthenticationManager::tokenCan('posts:write')
+   │
+   ▼
+AuthorizationManager / Policy
+   │
+   ▼
+Resource Operation
+```
+
+A token ability should not automatically replace a Laravel Gate or Policy decision when resource-level authorization is required.
+
+---
+
+## 91.27 API Token Authentication Responsibilities
+
+CoreAuth:
+
+```text
+Contract
+API Authentication Manager API
+Sanctum Guard Delegation
+Current User Access
+Token Ability Checks
+Container Integration
+Unit Tests
+Integration Tests
+```
+
+Laravel Sanctum:
+
+```text
+Bearer Token Authentication
+Token Resolution
+Current Access Token
+Token Ability Infrastructure
+HasApiTokens Integration
+```
+
+Application:
+
+```text
+Ability Naming
+Ability Assignment
+Route / Endpoint Policy
+Resource Authorization
+Business Rules
+HTTP Enforcement
+Security Policy
+```
+
+This boundary keeps API authentication focused and prevents CoreAuth from becoming a second Sanctum implementation.
+
+---
+
+## 91.28 API Token Authentication Testing
+
+The API authentication layer is tested at both unit and integration levels.
+
+Unit coverage verifies:
+
+```text
+Contract Implementation
+Public Methods
+Sanctum Guard Delegation
+Authenticated User Retrieval
+tokenCan() Positive Result
+tokenCan() Negative Result
+tokenCant() Positive Result
+tokenCant() Negative Result
+```
+
+The unit suite for this feature contains:
+
+```text
+8 tests
+27 assertions
+```
+
+Integration coverage verifies behavior against the real Laravel Sanctum integration, including:
+
+```text
+Authenticated API User
+Authenticated State
+Token Ability Present
+Token Ability Missing
+tokenCant() Behavior
+Unauthenticated State
+Unauthenticated User
+```
+
+The integration suite for this feature contains:
+
+```text
+7 tests
+8 assertions
+```
+
+The complete verified project suite is:
+
+```text
+119 tests
+231 assertions
+```
+
+and passes successfully.
+
+---
+
+## 91.29 API Token Authentication Architectural Flow
+
+The complete API authentication flow is:
+
+```text
+API Request
+      │
+      ▼
+Laravel Authentication Factory
+      │
+      ▼
+Sanctum Guard
+      │
+      ▼
+ApiAuthenticationManager
+      │
+      ├── check()
+      │
+      ├── user()
+      │
+      ├── tokenCan()
+      │
+      └── tokenCant()
+      │
+      ▼
+Application API Logic
+```
+
+When resource authorization is required:
+
+```text
+API Request
+      │
+      ▼
+Sanctum Authentication
+      │
+      ▼
+ApiAuthenticationManager
+      │
+      ▼
+Token Ability Check
+      │
+      ▼
+AuthorizationManager
+      │
+      ▼
+Laravel Gate / Policy
+      │
+      ▼
+Application Resource
+```
+
+Each layer has a single purpose.
+
+
 ---
 
 # 92. Final Summary
@@ -3315,6 +3938,8 @@ Password Reset
 Email Verification
 Authorization
 User Management
+API Token Management
+API Token Authentication
 ```
 
 Each responsibility exposes a Contract and an implementation.
@@ -3344,6 +3969,8 @@ PasswordResetManager
 EmailVerificationManager
 AuthorizationManager
 UserManager
+ApiTokenManager
+ApiAuthenticationManager
 ```
 
 The package provides:
@@ -3364,8 +3991,8 @@ Configuration Support
 The current verified project state is:
 
 ```text
-104 tests
-196 assertions
+119 tests
+231 assertions
 ```
 
 with the test suite passing.
@@ -3389,16 +4016,22 @@ Therefore the intended architecture remains:
                               ▼
                         CoreAuth APIs
                               │
-             ┌────────────────┼────────────────┐
-             │                │                │
-             ▼                ▼                ▼
-      Authentication    Authorization     User Management
-             │                │                │
-             ▼                ▼                ▼
-       Laravel Auth      Laravel Gate      Eloquent
-             │
-             ▼
-       Laravel Infrastructure
+             ┌────────────────┼────────────────┬────────────────────────┐
+             │                │                │                        │
+             ▼                ▼                ▼                        ▼
+      Authentication    Authorization     User Management      API Token Services
+             │                │                │                        │
+             ▼                ▼                ▼              ┌─────────┴─────────┐
+       Laravel Auth      Laravel Gate      Eloquent            │                   │
+                                                              ▼                   ▼
+                                                       ApiTokenManager   ApiAuthenticationManager
+                                                              │                   │
+                                                              └─────────┬─────────┘
+                                                                        ▼
+                                                                  Laravel Sanctum
+                                                                        │
+                                                                        ▼
+                                                               Laravel Infrastructure
 ```
 
 CoreAuth should continue to add value through:
