@@ -17,4 +17,14 @@ interface ApiAuthenticationManagerInterface
      * Retrieve the currently authenticated API user.
      */
     public function user(): ?Authenticatable;
+
+    /**
+     * Determine whether the current API token has the given ability.
+     */
+    public function tokenCan(string $ability): bool;
+
+    /**
+     * Determine whether the current API token does not have the given ability.
+     */
+    public function tokenCant(string $ability): bool;
 }

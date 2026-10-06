@@ -8,6 +8,7 @@ use AhmedSalahDev\CoreAuth\Contracts\ApiAuthenticationManagerInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Contracts\Auth\Guard;
+use Laravel\Sanctum\HasApiTokens;
 
 final class ApiAuthenticationManager implements ApiAuthenticationManagerInterface
 {
@@ -33,6 +34,25 @@ final class ApiAuthenticationManager implements ApiAuthenticationManagerInterfac
     public function user(): ?Authenticatable
     {
         return $this->guard()->user();
+    }
+
+    public function tokenCan(string $ability): bool
+    {
+        $user = $this->user();
+
+        if (
+            ! $user ||
+            ! in_array(HasApiTokens::class, class_uses_recursive($user), true)
+        ) {
+            return false;
+        }
+
+        return $user->tokenCan($ability);
+    }
+
+    public function tokenCant(string $ability): bool
+    {
+        return ! $this->tokenCan($ability);
     }
 
     /**

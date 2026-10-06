@@ -7,8 +7,8 @@ namespace Tests\Integration;
 use AhmedSalahDev\CoreAuth\Services\ApiAuthenticationManager;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Laravel\Sanctum\SanctumServiceProvider;
 use Laravel\Sanctum\Sanctum;
+use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase;
 use Tests\Fixtures\User;
 
@@ -88,6 +88,63 @@ final class ApiAuthenticationManagerTest extends TestCase
             $this->apiAuthenticationManager->check()
         );
     }
+
+    public function test_it_returns_true_when_the_current_token_has_the_ability(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ahmed',
+            'email' => 'ahmed@example.com',
+        ]);
+
+        Sanctum::actingAs($user, ['users:read']);
+
+        $this->assertTrue(
+            $this->apiAuthenticationManager->tokenCan('users:read')
+        );
+    }
+
+    public function test_it_returns_false_when_the_current_token_does_not_have_the_ability(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ahmed',
+            'email' => 'ahmed@example.com',
+        ]);
+
+        Sanctum::actingAs($user, ['users:read']);
+
+        $this->assertFalse(
+            $this->apiAuthenticationManager->tokenCan('users:delete')
+        );
+    }
+
+    public function test_it_returns_true_when_the_current_token_cannot_perform_the_ability(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ahmed',
+            'email' => 'ahmed@example.com',
+        ]);
+
+        Sanctum::actingAs($user, ['users:read']);
+
+        $this->assertTrue(
+            $this->apiAuthenticationManager->tokenCant('users:delete')
+        );
+    }
+
+    public function test_it_returns_false_when_the_current_token_can_perform_the_ability(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ahmed',
+            'email' => 'ahmed@example.com',
+        ]);
+
+        Sanctum::actingAs($user, ['users:read']);
+
+        $this->assertFalse(
+            $this->apiAuthenticationManager->tokenCant('users:read')
+        );
+    }
+
     public function test_it_returns_false_when_the_request_is_not_authenticated(): void
     {
         $this->assertFalse(
