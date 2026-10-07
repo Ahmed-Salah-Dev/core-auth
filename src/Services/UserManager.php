@@ -58,4 +58,17 @@ final class UserManager implements UserManagerInterface
 
         return $user;
     }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    public function update(
+        Authenticatable $user,
+        array $attributes
+    ): Authenticatable {
+        /** @var Model&Authenticatable $user */
+        $user->update($attributes);
+
+        return $user->refresh();
+    }
 }

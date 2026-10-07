@@ -32,4 +32,14 @@ interface UserManagerInterface
     public function create(
         array $attributes
     ): Authenticatable;
+
+    /**
+     * Update an existing user using the given attributes.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    public function update(
+        Authenticatable $user,
+        array $attributes
+    ): Authenticatable;
 }

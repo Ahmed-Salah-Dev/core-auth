@@ -99,6 +99,57 @@ final class UserManagerTest extends TestCase
         ]);
     }
 
+    public function test_it_updates_a_user(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ahmed',
+            'email' => 'ahmed@example.com',
+        ]);
+
+        $updatedUser = $this->userManager->update($user, [
+            'name' => 'Mohammed',
+            'email' => 'mohammed@example.com',
+        ]);
+
+        $this->assertInstanceOf(User::class, $updatedUser);
+        $this->assertSame($user->getKey(), $updatedUser->getKey());
+        $this->assertSame('Mohammed', $updatedUser->getAttribute('name'));
+        $this->assertSame(
+            'mohammed@example.com',
+            $updatedUser->getAttribute('email')
+        );
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->getKey(),
+            'name' => 'Mohammed',
+            'email' => 'mohammed@example.com',
+        ]);
+    }
+
+    public function test_it_updates_only_the_given_attributes(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ahmed',
+            'email' => 'ahmed@example.com',
+        ]);
+
+        $updatedUser = $this->userManager->update($user, [
+            'name' => 'Mohammed',
+        ]);
+
+        $this->assertSame('Mohammed', $updatedUser->getAttribute('name'));
+        $this->assertSame(
+            'ahmed@example.com',
+            $updatedUser->getAttribute('email')
+        );
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->getKey(),
+            'name' => 'Mohammed',
+            'email' => 'ahmed@example.com',
+        ]);
+    }
+
     public function test_it_throws_an_exception_when_user_model_is_not_configured(): void
     {
         $this->expectException(UserException::class);
