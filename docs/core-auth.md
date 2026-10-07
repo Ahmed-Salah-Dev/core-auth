@@ -1154,7 +1154,7 @@ unless a future real requirement justifies such an abstraction.
 
 # 38. User Management
 
-User Management provides a focused abstraction around user retrieval and creation.
+User Management provides a focused abstraction around user retrieval, creation, and update.
 
 The Contract is:
 
@@ -1174,6 +1174,7 @@ The current responsibility includes:
 Find User
 Find User by Attributes
 Create User
+Update User
 ```
 
 ---
@@ -1192,6 +1193,11 @@ public function findBy(
 ): ?Authenticatable;
 
 public function create(
+    array $attributes
+): Authenticatable;
+
+public function update(
+    Authenticatable $user,
     array $attributes
 ): Authenticatable;
 ```
@@ -1344,6 +1350,39 @@ CoreAuth does not introduce a separate persistence engine.
 
 ---
 
+## update()
+
+The `update()` method updates an existing user through the configured Eloquent model.
+
+Example:
+
+```php
+$userManager->update(
+    $user,
+    [
+        'name' => $name,
+    ]
+);
+```
+
+The method delegates to:
+
+```php
+$user->update($attributes);
+```
+
+and then returns a refreshed instance through:
+
+```php
+$user->refresh();
+```
+
+This means partial updates preserve attributes that are not included in the supplied array, while the returned user reflects the persisted state.
+
+CoreAuth continues to rely on Eloquent for persistence and does not introduce a repository or separate persistence abstraction for user updates.
+
+---
+
 # 46. User Management Responsibilities
 
 CoreAuth:
@@ -1354,6 +1393,7 @@ User Manager API
 Configured Model Validation
 User Retrieval Abstraction
 User Creation Abstraction
+User Update Abstraction
 Container Integration
 ```
 
@@ -1647,6 +1687,7 @@ This allows tests to verify:
 find()
 findBy()
 create()
+update()
 ```
 
 against actual Eloquent queries rather than replacing Eloquent itself with mocks.
@@ -1685,8 +1726,8 @@ Package Exceptions
 The current verified project state is:
 
 ```text
-119 tests
-231 assertions
+121 tests
+239 assertions
 ```
 
 and the suite is passing.
@@ -1778,7 +1819,8 @@ UserManagerInterface
 
 ├── find()
 ├── findBy()
-└── create()
+├── create()
+└── update()
 ```
 
 ## API Token Management
@@ -2019,6 +2061,7 @@ User Management provides access to user records:
 Find
 Find By
 Create
+Update
 ```
 
 Therefore:
@@ -2447,6 +2490,7 @@ User Management                ✓
 User Retrieval                 ✓
 User Lookup by Attributes      ✓
 User Creation                  ✓
+User Update                    ✓
 User Configuration             ✓
 User Exception                 ✓
 
@@ -2481,8 +2525,8 @@ Documentation                  ✓
 The current verified test suite is:
 
 ```text
-104 tests
-196 assertions
+121 tests
+239 assertions
 ```
 
 Expected status:
@@ -3863,8 +3907,8 @@ The integration suite for this feature contains:
 The complete verified project suite is:
 
 ```text
-119 tests
-231 assertions
+121 tests
+239 assertions
 ```
 
 and passes successfully.
@@ -3991,8 +4035,8 @@ Configuration Support
 The current verified project state is:
 
 ```text
-119 tests
-231 assertions
+121 tests
+239 assertions
 ```
 
 with the test suite passing.

@@ -28,11 +28,12 @@
 4. دعم البحث باستخدام المعرف الأساسي.
 5. دعم البحث باستخدام مجموعة من الخصائص.
 6. توفير عملية إنشاء مستخدم.
-7. دعم أي Eloquent Model يطبق `Authenticatable`.
-8. استخدام Dependency Injection وService Container.
-9. تسجيل User Manager كـ Singleton داخل الحزمة.
-10. توفير Exceptions واضحة عند وجود إعداد غير صالح.
-11. الحفاظ على إمكانية توسيع النظام مستقبلًا دون إدخال abstraction غير ضروري حاليًا.
+7. توفير عملية تحديث مستخدم موجود.
+8. دعم أي Eloquent Model يطبق `Authenticatable`.
+9. استخدام Dependency Injection وService Container.
+10. تسجيل User Manager كـ Singleton داخل الحزمة.
+11. توفير Exceptions واضحة عند وجود إعداد غير صالح.
+12. الحفاظ على إمكانية توسيع النظام مستقبلًا دون إدخال abstraction غير ضروري حاليًا.
 
 ---
 
@@ -87,7 +88,7 @@ AuthManager
 Laravel Authentication
 ```
 
-وبذلك لا يصبح `AuthManager` مسؤولًا عن إنشاء المستخدمين أو البحث عنهم، ولا يصبح `UserManager` مسؤولًا عن تسجيل الدخول أو تسجيل الخروج.
+وبذلك لا يصبح `AuthManager` مسؤولًا عن إنشاء المستخدمين أو البحث عنهم أو تحديثهم، ولا يصبح `UserManager` مسؤولًا عن تسجيل الدخول أو تسجيل الخروج.
 
 ---
 
@@ -110,6 +111,14 @@ $userManager->find($id);
 ```
 
 تتعلق بإدارة المستخدم.
+
+وكذلك:
+
+```php
+$userManager->update($user, $attributes);
+```
+
+تتعلق بتحديث بيانات المستخدم.
 
 الفصل بين المسؤوليتين يمنع تضخم `AuthManager` ويجعل كل Manager مسؤولًا عن نطاق واضح.
 
@@ -193,6 +202,16 @@ interface UserManagerInterface
      * @param array<string, mixed> $attributes
      */
     public function create(
+        array $attributes
+    ): Authenticatable;
+
+    /**
+     * Update an existing user using the given attributes.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    public function update(
+        Authenticatable $user,
         array $attributes
     ): Authenticatable;
 }
@@ -391,7 +410,110 @@ $this->modelClass::query()->create($attributes);
 
 ---
 
-# 13. مسؤولية تشفير كلمة المرور
+# 13. update()
+
+توفر `update()` إمكانية تحديث مستخدم موجود باستخدام مجموعة من الخصائص.
+
+التوقيع:
+
+```php
+public function update(
+    Authenticatable $user,
+    array $attributes
+): Authenticatable;
+```
+
+مثال:
+
+```php
+$user = $userManager->find(1);
+
+$user = $userManager->update($user, [
+    'name' => 'Ahmed Salah',
+]);
+```
+
+تقوم العملية بتمرير الخصائص إلى المستخدم باستخدام Eloquent:
+
+```php
+$user->update($attributes);
+```
+
+ثم يتم تحديث نسخة المستخدم المعادة من خلال:
+
+```php
+$user->refresh();
+```
+
+وبالتالي تعيد `update()` المستخدم بعد تطبيق التغييرات وقراءة حالته الحالية من قاعدة البيانات.
+
+---
+
+# 14. سلوك update()
+
+تقبل `update()` مستخدمًا موجودًا من النوع:
+
+```php
+Authenticatable
+```
+
+ثم مجموعة من الخصائص:
+
+```php
+array $attributes
+```
+
+ولا تشترط العملية تحديث جميع خصائص المستخدم.
+
+على سبيل المثال، يمكن تحديث الاسم فقط:
+
+```php
+$userManager->update($user, [
+    'name' => 'New Name',
+]);
+```
+
+مع بقاء بقية البيانات دون تغيير.
+
+بعد تنفيذ التحديث، يتم استدعاء:
+
+```php
+refresh()
+```
+
+حتى تكون القيمة المعادة ممثلة للحالة الحالية للمستخدم في قاعدة البيانات.
+
+---
+
+# 15. لماذا يستخدم update() refresh()؟
+
+تنفيذ:
+
+```php
+$user->update($attributes);
+```
+
+يقوم بتحديث النموذج.
+
+بعد ذلك يستخدم User Manager:
+
+```php
+$user->refresh();
+```
+
+والهدف هو إعادة تحميل النموذج من قاعدة البيانات بعد التحديث.
+
+وبذلك تكون القيمة التي يعيدها:
+
+```php
+update()
+```
+
+هي المستخدم بعد تحديث حالته من المصدر الفعلي للبيانات.
+
+---
+
+# 16. مسؤولية تشفير كلمة المرور
 
 User Manager الحالي لا يقوم بتشفير كلمات المرور بنفسه.
 
@@ -401,15 +523,21 @@ User Manager الحالي لا يقوم بتشفير كلمات المرور ب�
 create()
 ```
 
-لا يحتوي حاليًا على منطق مخصص لتشفير كلمة المرور.
+و:
 
-مسؤولية تجهيز قيمة كلمة المرور قبل تمريرها إلى `create()` تعتمد على التطبيق المستخدم للحزمة.
+```php
+update()
+```
+
+لا يحتويان حاليًا على منطق مخصص لتشفير كلمة المرور.
+
+مسؤولية تجهيز قيمة كلمة المرور قبل تمريرها إلى عمليات User Manager تعتمد على التطبيق المستخدم للحزمة.
 
 لا ينبغي إضافة منطق إضافي إلى User Manager لمجرد افتراض حاجة مستقبلية غير موجودة في التصميم الحالي.
 
 ---
 
-# 14. User Model Configuration
+# 17. User Model Configuration
 
 يحتاج User Manager إلى معرفة Eloquent Model الذي يمثل المستخدم.
 
@@ -445,7 +573,7 @@ null
 
 ---
 
-# 15. لماذا يتم استخدام Configuration؟
+# 18. لماذا يتم استخدام Configuration؟
 
 بدل ربط User Manager بـ Model معين داخل الحزمة، يتم تحديد الـ Model من التطبيق الذي يستخدم `Core Auth`.
 
@@ -461,7 +589,7 @@ App\Models\User
 
 ---
 
-# 16. نوع الـ User Model
+# 19. نوع الـ User Model
 
 يتوقع User Manager أن يكون الـ Model المحدد:
 
@@ -486,7 +614,7 @@ null
 
 ---
 
-# 17. التحقق من User Model
+# 20. التحقق من User Model
 
 يحتوي `UserManager` على تحقق من الـ Model المحدد.
 
@@ -506,7 +634,7 @@ is_a($modelClass, Authenticatable::class, true)
 
 ---
 
-# 18. لماذا يتم التحقق عند الإنشاء؟
+# 21. لماذا يتم التحقق عند الإنشاء؟
 
 يتم التحقق من الـ Model في constructor بدل الانتظار حتى استدعاء:
 
@@ -526,13 +654,19 @@ findBy()
 create()
 ```
 
+أو:
+
+```php
+update()
+```
+
 والسبب هو اكتشاف configuration غير صحيحة في أقرب نقطة ممكنة.
 
 إذا كانت إعدادات User Manager غير صحيحة، فمن الأفضل أن يفشل الـ Manager مبكرًا بدل إنشاء حالة غير صالحة تستمر داخل التطبيق.
 
 ---
 
-# 19. UserException
+# 22. UserException
 
 تم إنشاء Exception مخصص لهذه المسؤولية:
 
@@ -565,7 +699,7 @@ CoreAuthException
 
 ---
 
-# 20. متى يتم استخدام UserException؟
+# 23. متى يتم استخدام UserException؟
 
 يستخدم حاليًا عند وجود configuration غير صالحة لـ User Model.
 
@@ -599,7 +733,7 @@ The configured user model must be an Eloquent model that implements Authenticata
 
 ---
 
-# 21. لماذا لا نستخدم TypeError؟
+# 24. لماذا لا نستخدم TypeError؟
 
 قد يبدو للوهلة الأولى أنه يمكن تعريف constructor هكذا:
 
@@ -635,7 +769,7 @@ UserException
 
 ---
 
-# 22. UserManager Implementation
+# 25. UserManager Implementation
 
 الملف:
 
@@ -706,12 +840,25 @@ final class UserManager implements UserManagerInterface
 
         return $user;
     }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    public function update(
+        Authenticatable $user,
+        array $attributes
+    ): Authenticatable {
+        /** @var Model&Authenticatable $user */
+        $user->update($attributes);
+
+        return $user->refresh();
+    }
 }
 ```
 
 ---
 
-# 23. لماذا يتم حقن Model Class في Constructor؟
+# 26. لماذا يتم حقن Model Class في Constructor؟
 
 يتم تمرير الـ Model إلى User Manager عند إنشائه:
 
@@ -729,7 +876,7 @@ new UserManager(
 
 ---
 
-# 24. Service Container
+# 27. Service Container
 
 تم تسجيل User Manager داخل:
 
@@ -758,7 +905,7 @@ UserManagerInterface
 
 ---
 
-# 25. لماذا Singleton؟
+# 28. لماذا Singleton؟
 
 تم تسجيل User Manager كـ Singleton لأن الكلاس لا يحتفظ بحالة متغيرة مرتبطة بمستخدم معين.
 
@@ -768,7 +915,7 @@ UserManagerInterface
 
 ---
 
-# 26. Dependency Injection
+# 29. Dependency Injection
 
 يمكن استخدام الـ Contract من خلال Dependency Injection:
 
@@ -792,7 +939,7 @@ new UserManager(...)
 
 ---
 
-# 27. Fixture المستخدم في الاختبارات
+# 30. Fixture المستخدم في الاختبارات
 
 للاختبارات، تم إنشاء Model مستقل:
 
@@ -826,7 +973,7 @@ users
 
 ---
 
-# 28. إعداد Fixture
+# 31. إعداد Fixture
 
 الـ Fixture المستخدم في الاختبارات يحتوي على:
 
@@ -854,7 +1001,7 @@ updated_at
 
 ---
 
-# 29. قاعدة بيانات الاختبارات
+# 32. قاعدة بيانات الاختبارات
 
 يتم استخدام SQLite in-memory في اختبارات User Manager.
 
@@ -866,7 +1013,7 @@ updated_at
 
 ---
 
-# 30. اختبارات User Manager
+# 33. اختبارات User Manager
 
 الملف:
 
@@ -881,12 +1028,14 @@ tests/Unit/UserManagerTest.php
 * العثور على مستخدم باستخدام attributes.
 * التعامل مع attributes لا تطابق أي مستخدم.
 * إنشاء مستخدم جديد.
+* تحديث مستخدم موجود.
+* تحديث جزء من بيانات المستخدم مع الحفاظ على البيانات الأخرى.
 * التعامل مع User Model غير مضبوط.
 * التعامل مع User Model غير صالح.
 
 ---
 
-# 31. اختبار find()
+# 34. اختبار find()
 
 يتم اختبار أن:
 
@@ -904,7 +1053,7 @@ null
 
 ---
 
-# 32. اختبار findBy()
+# 35. اختبار findBy()
 
 يتم اختبار البحث باستخدام attributes:
 
@@ -920,7 +1069,7 @@ null
 
 ---
 
-# 33. اختبار create()
+# 36. اختبار create()
 
 يتم اختبار إنشاء مستخدم باستخدام:
 
@@ -934,7 +1083,26 @@ create(array $attributes)
 
 ---
 
-# 34. اختبار Configuration
+# 37. اختبار update()
+
+يتم اختبار تحديث مستخدم موجود باستخدام:
+
+```php
+update(
+    Authenticatable $user,
+    array $attributes
+)
+```
+
+ويتم التحقق من أن التغييرات تم تطبيقها على قاعدة البيانات.
+
+كما يتم اختبار التحديث الجزئي، بحيث يتم تغيير خاصية محددة مع التأكد من بقاء الخصائص الأخرى دون تغيير.
+
+ويتم أيضًا التحقق من أن القيمة المعادة تمثل المستخدم بعد التحديث.
+
+---
+
+# 38. اختبار Configuration
 
 يتم اختبار الحالة التي يكون فيها:
 
@@ -954,7 +1122,7 @@ UserException
 
 ---
 
-# 35. اختبار Model غير صالح
+# 39. اختبار Model غير صالح
 
 يتم أيضًا اختبار Model لا يحقق المتطلبات المطلوبة.
 
@@ -978,7 +1146,7 @@ UserException
 
 ---
 
-# 36. اختبارات Service Provider
+# 40. اختبارات Service Provider
 
 تم تحديث:
 
@@ -1001,7 +1169,7 @@ config()->set(
 
 ---
 
-# 37. اختبار Singleton
+# 41. اختبار Singleton
 
 يتم أيضًا التأكد من أن:
 
@@ -1021,7 +1189,7 @@ $app->make(UserManagerInterface::class)
 
 ---
 
-# 38. حدود مسؤولية User Manager
+# 42. حدود مسؤولية User Manager
 
 المسؤوليات الحالية لـ User Manager هي:
 
@@ -1030,7 +1198,8 @@ User Management
 │
 ├── Find by ID
 ├── Find by attributes
-└── Create user
+├── Create user
+└── Update user
 ```
 
 ولا تشمل حاليًا:
@@ -1051,7 +1220,7 @@ Events
 
 ---
 
-# 39. ما الذي لا يفعله User Manager؟
+# 43. ما الذي لا يفعله User Manager؟
 
 User Manager لا يقوم حاليًا بـ:
 
@@ -1097,7 +1266,7 @@ EmailVerificationManager
 
 ---
 
-# 40. عدم إضافة Repository حاليًا
+# 44. عدم إضافة Repository حاليًا
 
 لم تتم إضافة Repository abstraction إلى User Manager.
 
@@ -1110,12 +1279,13 @@ UserRepository
 
 وهذا قرار مقصود.
 
-User Manager يحتاج حاليًا إلى عمليات بسيطة جدًا:
+User Manager يحتاج حاليًا إلى عمليات بسيطة ومباشرة:
 
 ```text
 find
 findBy
 create
+update
 ```
 
 وEloquent يوفر abstraction كافية لهذه العمليات.
@@ -1126,7 +1296,7 @@ create
 
 ---
 
-# 41. عدم إضافة Factory حاليًا
+# 45. عدم إضافة Factory حاليًا
 
 كذلك لا توجد User Factory داخل Core Auth.
 
@@ -1138,11 +1308,11 @@ create
 $model::query()->create($attributes)
 ```
 
-كافية لتنفيذ المسؤولية الحالية.
+كافية لتنفيذ مسؤولية الإنشاء الحالية.
 
 ---
 
-# 42. التعامل مع أخطاء قاعدة البيانات
+# 46. التعامل مع أخطاء قاعدة البيانات
 
 User Manager الحالي لا يقوم بتغليف جميع استثناءات قاعدة البيانات داخل:
 
@@ -1156,6 +1326,12 @@ UserException
 create()
 ```
 
+أو:
+
+```php
+update()
+```
+
 فإن الاستثناء الصادر من Laravel/Eloquent يمكن أن ينتقل إلى التطبيق.
 
 هذا قرار مقصود في المرحلة الحالية، لأن `UserException` مخصص حاليًا لمشكلة configuration المتعلقة بـ User Model.
@@ -1164,7 +1340,7 @@ create()
 
 ---
 
-# 43. Eloquent هو المسؤول عن عمليات ORM
+# 47. Eloquent هو المسؤول عن عمليات ORM
 
 User Manager لا يعيد تنفيذ وظائف Eloquent.
 
@@ -1190,11 +1366,17 @@ $model::query()
 $model::query()->create($attributes);
 ```
 
+و:
+
+```php
+$user->update($attributes);
+```
+
 وبذلك تبقى مسؤولية User Manager هي توفير abstraction على مستوى الحزمة، وليس إعادة بناء Eloquent.
 
 ---
 
-# 44. Laravel هو المسؤول عن Model Lifecycle
+# 48. Laravel هو المسؤول عن Model Lifecycle
 
 يبقى Laravel/Eloquent مسؤولًا عن:
 
@@ -1211,19 +1393,21 @@ User Manager لا يحاول نقل هذه المسؤوليات إلى داخل 
 
 ---
 
-# 45. Mass Assignment
+# 49. Mass Assignment
 
-تعتمد عملية:
+تعتمد عمليتا:
 
 ```php
 create()
 ```
 
-على:
+و:
 
 ```php
-Eloquent::create()
+update()
 ```
+
+على آليات Eloquent.
 
 لذلك فإن قواعد Mass Assignment الخاصة بالـ Model المستخدم تظل مطبقة.
 
@@ -1245,7 +1429,7 @@ User Manager لا يتجاوز هذه الحماية.
 
 ---
 
-# 46. Public API الحالي
+# 50. Public API الحالي
 
 واجهة User Manager الحالية:
 
@@ -1267,11 +1451,18 @@ create(
 ): Authenticatable;
 ```
 
+```php
+update(
+    Authenticatable $user,
+    array $attributes
+): Authenticatable;
+```
+
 وهذه هي الـ API العامة المعتمدة حاليًا لهذه المرحلة.
 
 ---
 
-# 47. أمثلة الاستخدام
+# 51. أمثلة الاستخدام
 
 ## العثور على مستخدم
 
@@ -1313,7 +1504,17 @@ $user = $userManager->create([
 
 ---
 
-# 48. العلاقة مع Authentication
+## تحديث مستخدم
+
+```php
+$user = $userManager->update($user, [
+    'name' => 'Ahmed Salah',
+]);
+```
+
+---
+
+# 52. العلاقة مع Authentication
 
 يمكن أن تتعاون المكونات معًا دون دمج مسؤولياتها.
 
@@ -1322,7 +1523,7 @@ $user = $userManager->create([
 ```text
 UserManager
      │
-     │ creates
+     │ creates / updates
      ▼
    User
      │
@@ -1337,7 +1538,7 @@ UserManager
 
 ---
 
-# 49. العلاقة مع Authorization
+# 53. العلاقة مع Authorization
 
 بعد الحصول على مستخدم:
 
@@ -1370,7 +1571,7 @@ AuthorizationManager
 
 ---
 
-# 50. التصميم الحالي
+# 54. التصميم الحالي
 
 التصميم الحالي يمكن تمثيله كالتالي:
 
@@ -1398,20 +1599,20 @@ Email Verification
 
 ---
 
-# 51. لماذا UserManager ليس CRUD كاملًا؟
+# 55. لماذا UserManager ليس CRUD كاملًا؟
 
-تم اختيار API صغيرة في المرحلة الحالية:
+تم اختيار API محددة في المرحلة الحالية:
 
 ```text
 find
 findBy
 create
+update
 ```
 
 بدل إضافة:
 
 ```text
-update
 delete
 paginate
 restore
@@ -1420,20 +1621,21 @@ forceDelete
 
 دون وجود متطلبات فعلية.
 
+إضافة `update()` جاءت كمتطلب فعلي لتوفير عملية تحديث المستخدم ضمن مسؤولية User Management، بينما لا يعني ذلك تحويل User Manager إلى طبقة CRUD كاملة تغطي جميع إمكانيات Eloquent.
+
 هذا يحافظ على API بسيطة ويمنع تضخم الـ Manager مبكرًا.
 
 إضافة عمليات أخرى يجب أن تكون نتيجة متطلبات واضحة، وليس مجرد محاولة جعل User Manager يغطي كل عمليات Eloquent.
 
 ---
 
-# 52. قابلية التوسع المستقبلية
+# 56. قابلية التوسع المستقبلية
 
 تم تصميم الـ Contract بحيث يمكن توسيعه مستقبلًا إذا ظهرت متطلبات حقيقية.
 
 قد تظهر لاحقًا احتياجات مثل:
 
 ```text
-update user
 delete user
 list users
 pagination
@@ -1446,7 +1648,7 @@ user status
 
 ---
 
-# 53. مبدأ عدم الإفراط في التجريد
+# 57. مبدأ عدم الإفراط في التجريد
 
 من المبادئ المهمة في المشروع:
 
@@ -1486,24 +1688,28 @@ Eloquent
 
 ---
 
-# 54. الاختبارات الحالية
+# 58. الاختبارات الحالية
 
-تمت إضافة اختبارات User Manager بنجاح.
+تمت إضافة اختبارات User Manager بنجاح، وتم توسيعها لتغطية عملية تحديث المستخدم بالإضافة إلى العمليات السابقة.
 
-الحالة الخاصة باختبارات User Manager:
+تشمل اختبارات User Manager الحالية:
 
 ```text
-7 tests
-15 assertions
+find()
+findBy()
+create()
+update()
+Model Validation
+Configuration Validation
 ```
 
 كما تمت إضافة اختبارات تسجيل User Manager في Service Provider.
 
-الحالة الحالية الكاملة للمشروع بعد دمج User Manager:
+الحالة الحالية الكاملة للمشروع بعد دمج تحديث User Manager:
 
 ```text
-88 tests
-164 assertions
+121 tests
+239 assertions
 ```
 
 والنتيجة:
@@ -1514,7 +1720,7 @@ OK
 
 ---
 
-# 55. استراتيجية الاختبار
+# 59. استراتيجية الاختبار
 
 تعتمد هذه المرحلة على اختبار السلوك الفعلي بدل اختبار تفاصيل التنفيذ الداخلية.
 
@@ -1542,11 +1748,19 @@ create()
 
 من خلال Eloquent وSQLite.
 
+ويتم اختبار:
+
+```text
+update()
+```
+
+من خلال Eloquent وSQLite، مع التحقق من تطبيق التغيير والمحافظة على البيانات الأخرى عند التحديث الجزئي.
+
 وهذا يجعل الاختبارات أكثر ارتباطًا بالسلوك الذي يهم المستخدم النهائي للحزمة.
 
 ---
 
-# 56. Service Provider والـ Configuration
+# 60. Service Provider والـ Configuration
 
 يقوم:
 
@@ -1584,7 +1798,7 @@ core-auth.user.model
 
 ---
 
-# 57. القرار المعماري الحالي
+# 61. القرار المعماري الحالي
 
 القرارات الأساسية لهذه المرحلة:
 
@@ -1605,7 +1819,7 @@ core-auth.user.model
 
 ---
 
-# 58. مسؤولية User Manager في المشروع
+# 62. مسؤولية User Manager في المشروع
 
 User Manager مسؤول عن توفير abstraction بسيطة لإدارة المستخدمين على مستوى الحزمة.
 
@@ -1622,14 +1836,16 @@ User Manager
 │
 ├── findBy()
 │
-└── create()
+├── create()
+│
+└── update()
 ```
 
 ولا يتجاوز هذه الحدود حاليًا.
 
 ---
 
-# 59. سبب استخدام Authenticatable في Return Type
+# 63. سبب استخدام Authenticatable في Return Type
 
 يستخدم الـ Contract:
 
@@ -1657,7 +1873,7 @@ App\Models\User
 
 ---
 
-# 60. استقلال الحزمة عن تطبيق المستخدم
+# 64. استقلال الحزمة عن تطبيق المستخدم
 
 من أهم أهداف هذه المرحلة أن الحزمة لا تفترض بنية معينة للتطبيق.
 
@@ -1673,7 +1889,7 @@ App\Models\User
 
 ---
 
-# 61. ما تم إنجازه في هذه المرحلة
+# 65. ما تم إنجازه في هذه المرحلة
 
 تم إنجاز المكونات التالية:
 
@@ -1685,6 +1901,7 @@ App\Models\User
 ✓ Service Provider Binding
 ✓ User Fixture
 ✓ User Manager Tests
+✓ User Manager Update Tests
 ✓ Service Provider Tests
 ✓ SQLite Integration-style database testing
 ```
@@ -1693,12 +1910,12 @@ App\Models\User
 
 ---
 
-# 62. Git Workflow
+# 66. Git Workflow
 
-تم تطوير User Manager باستخدام Feature Branch مستقل:
+تم تطوير تحديث User Manager باستخدام Feature Branch مستقل:
 
 ```text
-feature/user-manager
+feature/user-management-update
 ```
 
 ثم تم تنفيذ الاختبارات والتحقق من الكود.
@@ -1706,7 +1923,7 @@ feature/user-manager
 تم إنشاء commit:
 
 ```text
-5d06289 feat: add user manager
+ae7930c feat: add user manager update
 ```
 
 ثم تم رفع الـ branch وإنشاء Pull Request.
@@ -1717,13 +1934,13 @@ feature/user-manager
 develop
 ```
 
-ثم تم حذف الـ feature branch المحلي والبعيد.
+ثم تم تحديث الفرع المحلي `develop` والتحقق من حالة المشروع.
 
 ---
 
-# 63. الحالة الحالية للفروع
+# 67. الحالة الحالية للفروع
 
-بعد دمج User Manager وتنظيف الفروع أصبحت الفروع الأساسية:
+بعد دمج تحديث User Manager وتنظيف الفروع تصبح الفروع الأساسية:
 
 ```text
 develop
@@ -1735,14 +1952,14 @@ origin/main
 ولا توجد حاجة للاحتفاظ بفرع:
 
 ```text
-feature/user-manager
+feature/user-management-update
 ```
 
-بعد اكتمال الدمج.
+بعد اكتمال الدمج وحذفه من المحلي والبعيد.
 
 ---
 
-# 64. التحقق النهائي
+# 68. التحقق النهائي
 
 تم تشغيل:
 
@@ -1753,19 +1970,17 @@ vendor/bin/phpunit
 والنتيجة الحالية:
 
 ```text
-PHPUnit 11.5.56
-
-88 tests
-164 assertions
+121 tests
+239 assertions
 
 OK
 ```
 
-وهذا يؤكد أن إضافة User Manager لم تكسر الاختبارات الموجودة مسبقًا.
+وهذا يؤكد أن إضافة عملية تحديث المستخدم لم تكسر الاختبارات الموجودة مسبقًا، وأن كامل مجموعة الاختبارات تمر بنجاح.
 
 ---
 
-# 65. الحالة الحالية لـ Core Auth
+# 69. الحالة الحالية لـ Core Auth
 
 بعد اكتمال User Management أصبحت المسؤوليات الرئيسية المنفذة في الحزمة:
 
@@ -1797,12 +2012,13 @@ Core Auth
 └── User Management
     ├── find
     ├── findBy
-    └── create
+    ├── create
+    └── update
 ```
 
 ---
 
-# 66. مبادئ التصميم المستخدمة
+# 70. مبادئ التصميم المستخدمة
 
 يعتمد User Manager على المبادئ التالية:
 
@@ -1844,7 +2060,7 @@ User Manager مسؤول عن إدارة المستخدمين فقط.
 
 ---
 
-# 67. ما الذي لا يجب اعتباره جزءًا من المرحلة الحالية؟
+# 71. ما الذي لا يجب اعتباره جزءًا من المرحلة الحالية؟
 
 يجب عدم اعتبار الميزات التالية جزءًا من User Manager الحالي:
 
@@ -1871,7 +2087,7 @@ Pagination API
 
 ---
 
-# 68. العلاقة مع بقية Managers
+# 72. العلاقة مع بقية Managers
 
 الـ Managers الحالية تمثل مسؤوليات منفصلة:
 
@@ -1896,7 +2112,7 @@ UserManager
 
 ---
 
-# 69. Public API النهائي لهذه المرحلة
+# 73. Public API النهائي لهذه المرحلة
 
 ```php
 interface UserManagerInterface
@@ -1918,6 +2134,14 @@ interface UserManagerInterface
     public function create(
         array $attributes
     ): Authenticatable;
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    public function update(
+        Authenticatable $user,
+        array $attributes
+    ): Authenticatable;
 }
 ```
 
@@ -1927,7 +2151,7 @@ interface UserManagerInterface
 
 ---
 
-# 70. الخلاصة
+# 74. الخلاصة
 
 أضافت مرحلة User Management طبقة مستقلة لإدارة المستخدمين داخل `Core Auth`.
 
@@ -1958,21 +2182,24 @@ Configured Eloquent Model
 Database
 ```
 
-والـ API الحالية بسيطة ومحددة:
+والـ API الحالية محددة في:
 
 ```text
 find()
 findBy()
 create()
+update()
 ```
 
 مع التحقق من صحة User Model واستخدام `UserException` عند وجود configuration غير صحيحة.
+
+وتوفر `update()` تحديثًا لمستخدم موجود مع إعادة تحميل حالته بعد التحديث باستخدام Eloquent.
 
 ولا توجد في هذه المرحلة إضافات غير ضرورية مثل Repository أو Factory أو CRUD كامل.
 
 ---
 
-# 71. الحالة النهائية
+# 75. الحالة النهائية
 
 **User Management: مكتمل**
 
@@ -1986,6 +2213,8 @@ create()
 ✓ Find by ID
 ✓ Find by Attributes
 ✓ Create User
+✓ Update User
+✓ Partial User Update
 ✓ Tests
 ✓ Service Provider Tests
 ✓ Documentation
@@ -1995,9 +2224,9 @@ create()
 الحالة العامة للاختبارات:
 
 ```text
-88 tests
-164 assertions
+121 tests
+239 assertions
 OK
 ```
 
-وبذلك أصبحت User Management موثقة كميزة مستقلة ضمن بنية `Core Auth`.
+وبذلك أصبحت User Management موثقة كميزة مستقلة ضمن بنية `Core Auth`، مع دعم عمليات البحث والإنشاء والتحديث ضمن حدود مسؤولية واضحة ودون تحويلها إلى abstraction عامة تغطي كامل وظائف Eloquent.
